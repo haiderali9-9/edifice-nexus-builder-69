@@ -14,7 +14,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
-          project_id: string | null
+          project_id: string
           type: string
           upload_date: string
           uploaded_by: string | null
@@ -24,7 +24,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
-          project_id?: string | null
+          project_id: string
           type: string
           upload_date?: string
           uploaded_by?: string | null
@@ -34,7 +34,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
-          project_id?: string | null
+          project_id?: string
           type?: string
           upload_date?: string
           uploaded_by?: string | null
@@ -48,13 +48,20 @@ export type Database = {
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       financial_transactions: {
         Row: {
           amount: number
           category: string | null
-          created_at: string
+          created_at: string | null
           created_by: string | null
           date: string
           description: string | null
@@ -63,11 +70,11 @@ export type Database = {
           type: string
         }
         Insert: {
-          amount?: number
+          amount: number
           category?: string | null
-          created_at?: string
+          created_at?: string | null
           created_by?: string | null
-          date: string
+          date?: string
           description?: string | null
           id?: string
           project_id?: string | null
@@ -76,7 +83,7 @@ export type Database = {
         Update: {
           amount?: number
           category?: string | null
-          created_at?: string
+          created_at?: string | null
           created_by?: string | null
           date?: string
           description?: string | null
@@ -85,6 +92,13 @@ export type Database = {
           type?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "financial_transactions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "financial_transactions_project_id_fkey"
             columns: ["project_id"]
@@ -98,7 +112,7 @@ export type Database = {
         Row: {
           amount: number
           client: string
-          created_at: string
+          created_at: string | null
           created_by: string | null
           due_date: string
           id: string
@@ -109,9 +123,9 @@ export type Database = {
           status: string
         }
         Insert: {
-          amount?: number
+          amount: number
           client: string
-          created_at?: string
+          created_at?: string | null
           created_by?: string | null
           due_date: string
           id?: string
@@ -119,12 +133,12 @@ export type Database = {
           notes?: string | null
           number: string
           project_id?: string | null
-          status?: string
+          status: string
         }
         Update: {
           amount?: number
           client?: string
-          created_at?: string
+          created_at?: string | null
           created_by?: string | null
           due_date?: string
           id?: string
@@ -135,6 +149,13 @@ export type Database = {
           status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "invoices_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoices_project_id_fkey"
             columns: ["project_id"]
@@ -208,48 +229,14 @@ export type Database = {
           },
         ]
       }
-      notifications: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          id: string
-          message: string
-          read: boolean | null
-          related_entity_id: string | null
-          title: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          message: string
-          read?: boolean | null
-          related_entity_id?: string | null
-          title: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          message?: string
-          read?: boolean | null
-          related_entity_id?: string | null
-          title?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       profiles: {
         Row: {
           avatar_url: string | null
-          created_at: string
+          created_at: string | null
           department: string | null
           email: string | null
           first_name: string | null
           id: string
-          is_active: boolean | null
           last_name: string | null
           phone: string | null
           position: string | null
@@ -257,12 +244,11 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
-          created_at?: string
+          created_at?: string | null
           department?: string | null
           email?: string | null
           first_name?: string | null
           id: string
-          is_active?: boolean | null
           last_name?: string | null
           phone?: string | null
           position?: string | null
@@ -270,12 +256,11 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
-          created_at?: string
+          created_at?: string | null
           department?: string | null
           email?: string | null
           first_name?: string | null
           id?: string
-          is_active?: boolean | null
           last_name?: string | null
           phone?: string | null
           position?: string | null
@@ -285,49 +270,49 @@ export type Database = {
       }
       projects: {
         Row: {
-          budget: number
-          client: string
-          completion: number
-          created_at: string
+          budget: number | null
+          client: string | null
+          completion: number | null
+          created_at: string | null
           description: string | null
-          end_date: string
+          end_date: string | null
           id: string
-          location: string
+          location: string | null
           manager_id: string | null
           name: string
           resources_cost: number | null
-          start_date: string
-          status: string
+          start_date: string | null
+          status: string | null
         }
         Insert: {
-          budget?: number
-          client: string
-          completion?: number
-          created_at?: string
+          budget?: number | null
+          client?: string | null
+          completion?: number | null
+          created_at?: string | null
           description?: string | null
-          end_date: string
+          end_date?: string | null
           id?: string
-          location: string
+          location?: string | null
           manager_id?: string | null
           name: string
           resources_cost?: number | null
-          start_date: string
-          status?: string
+          start_date?: string | null
+          status?: string | null
         }
         Update: {
-          budget?: number
-          client?: string
-          completion?: number
-          created_at?: string
+          budget?: number | null
+          client?: string | null
+          completion?: number | null
+          created_at?: string | null
           description?: string | null
-          end_date?: string
+          end_date?: string | null
           id?: string
-          location?: string
+          location?: string | null
           manager_id?: string | null
           name?: string
           resources_cost?: number | null
-          start_date?: string
-          status?: string
+          start_date?: string | null
+          status?: string | null
         }
         Relationships: [
           {
@@ -339,63 +324,10 @@ export type Database = {
           },
         ]
       }
-      reports: {
-        Row: {
-          data: Json | null
-          date_range_end: string | null
-          date_range_start: string | null
-          description: string | null
-          file_url: string | null
-          generated_at: string
-          generated_by: string | null
-          id: string
-          is_archived: boolean | null
-          project_id: string | null
-          title: string
-          type: string
-        }
-        Insert: {
-          data?: Json | null
-          date_range_end?: string | null
-          date_range_start?: string | null
-          description?: string | null
-          file_url?: string | null
-          generated_at?: string
-          generated_by?: string | null
-          id?: string
-          is_archived?: boolean | null
-          project_id?: string | null
-          title: string
-          type: string
-        }
-        Update: {
-          data?: Json | null
-          date_range_end?: string | null
-          date_range_start?: string | null
-          description?: string | null
-          file_url?: string | null
-          generated_at?: string
-          generated_by?: string | null
-          id?: string
-          is_archived?: boolean | null
-          project_id?: string | null
-          title?: string
-          type?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "reports_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       resource_allocations: {
         Row: {
           consumed: boolean | null
-          created_at: string
+          created_at: string | null
           days: number | null
           hours: number | null
           id: string
@@ -405,17 +337,17 @@ export type Database = {
         }
         Insert: {
           consumed?: boolean | null
-          created_at?: string
+          created_at?: string | null
           days?: number | null
           hours?: number | null
           id?: string
           project_id?: string | null
-          quantity?: number
+          quantity: number
           resource_id?: string | null
         }
         Update: {
           consumed?: boolean | null
-          created_at?: string
+          created_at?: string | null
           days?: number | null
           hours?: number | null
           id?: string
@@ -443,41 +375,41 @@ export type Database = {
       resources: {
         Row: {
           cost: number
-          created_at: string
+          created_at: string | null
           day_rate: number | null
           hour_rate: number | null
           id: string
           name: string
           quantity: number
-          returnable: boolean
-          status: string
-          type: string
+          returnable: boolean | null
+          status: string | null
+          type: string | null
           unit: string
         }
         Insert: {
-          cost?: number
-          created_at?: string
+          cost: number
+          created_at?: string | null
           day_rate?: number | null
           hour_rate?: number | null
           id?: string
           name: string
-          quantity?: number
-          returnable?: boolean
-          status?: string
-          type: string
+          quantity: number
+          returnable?: boolean | null
+          status?: string | null
+          type?: string | null
           unit: string
         }
         Update: {
           cost?: number
-          created_at?: string
+          created_at?: string | null
           day_rate?: number | null
           hour_rate?: number | null
           id?: string
           name?: string
           quantity?: number
-          returnable?: boolean
-          status?: string
-          type?: string
+          returnable?: boolean | null
+          status?: string | null
+          type?: string | null
           unit?: string
         }
         Relationships: []
@@ -489,11 +421,12 @@ export type Database = {
           description: string | null
           end_time: string
           id: string
-          project_id: string
+          project_id: string | null
           resource_ids: string[] | null
           start_time: string
           title: string
           type: string
+          updated_at: string
         }
         Insert: {
           created_at?: string
@@ -501,11 +434,12 @@ export type Database = {
           description?: string | null
           end_time: string
           id?: string
-          project_id: string
+          project_id?: string | null
           resource_ids?: string[] | null
           start_time: string
           title: string
           type: string
+          updated_at?: string
         }
         Update: {
           created_at?: string
@@ -513,11 +447,12 @@ export type Database = {
           description?: string | null
           end_time?: string
           id?: string
-          project_id?: string
+          project_id?: string | null
           resource_ids?: string[] | null
           start_time?: string
           title?: string
           type?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -531,16 +466,19 @@ export type Database = {
       }
       task_assignments: {
         Row: {
+          created_at: string
           id: string
           task_id: string
           user_id: string
         }
         Insert: {
+          created_at?: string
           id?: string
           task_id: string
           user_id: string
         }
         Update: {
+          created_at?: string
           id?: string
           task_id?: string
           user_id?: string
@@ -551,13 +489,6 @@ export type Database = {
             columns: ["task_id"]
             isOneToOne: false
             referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "task_assignments_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -651,23 +582,68 @@ export type Database = {
           },
         ]
       }
+      team_invitations: {
+        Row: {
+          accepted: boolean | null
+          created_at: string | null
+          department: string | null
+          email: string
+          expires_at: string
+          first_name: string | null
+          id: string
+          invited_by: string | null
+          last_name: string | null
+          position: string | null
+          role: string
+          token: string
+        }
+        Insert: {
+          accepted?: boolean | null
+          created_at?: string | null
+          department?: string | null
+          email: string
+          expires_at: string
+          first_name?: string | null
+          id?: string
+          invited_by?: string | null
+          last_name?: string | null
+          position?: string | null
+          role: string
+          token: string
+        }
+        Update: {
+          accepted?: boolean | null
+          created_at?: string | null
+          department?: string | null
+          email?: string
+          expires_at?: string
+          first_name?: string | null
+          id?: string
+          invited_by?: string | null
+          last_name?: string | null
+          position?: string | null
+          role?: string
+          token?: string
+        }
+        Relationships: []
+      }
       team_members: {
         Row: {
-          created_at: string
+          created_at: string | null
           id: string
           project_id: string | null
           role: string
           user_id: string | null
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           id?: string
           project_id?: string | null
           role: string
           user_id?: string | null
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           id?: string
           project_id?: string | null
           role?: string
@@ -690,57 +666,18 @@ export type Database = {
           },
         ]
       }
-      user_roles: {
-        Row: {
-          created_at: string | null
-          id: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      assign_admin_role: {
-        Args: { user_email: string }
-        Returns: undefined
-      }
-      has_role: {
-        Args: {
-          _user_id: string
-          _role: Database["public"]["Enums"]["app_role"]
-        }
-        Returns: boolean
-      }
-      is_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
+      calculate_project_resource_cost: {
+        Args: { project_id: string }
+        Returns: number
       }
     }
     Enums: {
-      app_role: "admin" | "user"
-      notification_type:
-        | "task_assigned"
-        | "project_assigned"
-        | "user_login"
-        | "resource_assigned"
-        | "issue_assigned"
-        | "team_added"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -855,16 +792,6 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {
-      app_role: ["admin", "user"],
-      notification_type: [
-        "task_assigned",
-        "project_assigned",
-        "user_login",
-        "resource_assigned",
-        "issue_assigned",
-        "team_added",
-      ],
-    },
+    Enums: {},
   },
 } as const
