@@ -9,174 +9,98 @@ export const typedSupabase = supabase;
 async function createDefaultAdmin() {
   try {
     // Check if admin user exists first
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('email', 'admin@edifice.com')
+      .maybeSingle();
     
-    if (!session) {
-      console.log("Creating default admin user...");
+    // If admin profile exists, we can skip the creation process
+    if (data) {
+      console.log("Admin profile already exists");
+      return;
+    }
+    
+    console.log("Admin profile not found, creating one...");
+    
+    // Try to sign up the admin user
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email: 'admin@edifice.com',
+      password: 'Admin123!',
+      options: {
+        data: {
+          first_name: 'Admin',
+          last_name: 'User',
+          role: 'admin'
+        }
+      }
+    });
+    
+    if (signUpError) {
+      // If the error is not due to rate limiting or existing user, log it
+      if (!signUpError.message.includes('security purposes') && 
+          !signUpError.message.includes('already registered')) {
+        console.error("Error creating admin account:", signUpError);
+      }
       
-      // Check if the user already exists
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // Try to sign in instead to check if user exists
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email: 'admin@edifice.com',
         password: 'Admin123!'
       });
       
-      if (error && error.message === 'Email not confirmed') {
-        // User exists but email not confirmed - get the user
-        const { data: userData } = await supabase.auth.signUp({
-          email: 'admin@edifice.com',
-          password: 'Admin123!',
-          options: {
-            data: {
-              first_name: 'Admin',
-              last_name: 'User',
-              email_confirmed: true // Explicitly set confirmed flag
-            }
-          }
-        });
-        
-        if (userData?.user) {
-          // Create or update the profile with special admin confirmation flag
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .upsert({
-              id: userData.user.id,
-              first_name: 'Admin',
-              last_name: 'User',
-              email: 'admin@edifice.com',
-              role: 'admin',
-              is_active: true,
-              is_email_confirmed: true // Special flag to bypass email confirmation
-            }, { onConflict: 'id' });
-            
-          if (profileError) {
-            console.error('Error creating admin profile:', profileError);
-          } else {
-            console.log('Admin profile created with confirmation flag');
-          }
-          
-          // Insert into user_roles
-          const { error: roleError } = await supabase
-            .from('user_roles')
-            .upsert({
-              user_id: userData.user.id,
-              role: 'admin'
-            }, { onConflict: 'user_id' });
-            
-          if (roleError && roleError.code !== '23505') {
-            console.error('Error setting admin role:', roleError);
-          }
-          
-          // Try signing in now that we've confirmed the email
-          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email: 'admin@edifice.com',
-            password: 'Admin123!'
-          });
-          
-          if (signInError) {
-            console.error('Admin sign-in after setup still failing:', signInError);
-            
-            // Try updating user data directly
-            await supabase.auth.updateUser({
-              data: { email_confirmed: true }
-            });
-          }
-        }
-      } else if (error && error.message !== 'Invalid login credentials') {
-        console.error("Error checking admin account:", error);
-      } else if (data?.user) {
-        // User exists and can sign in, make sure profile exists
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
-          
-        if (profileError || !profileData) {
-          // Create profile if it doesn't exist
-          const { error: insertError } = await supabase
-            .from('profiles')
-            .insert({
-              id: data.user.id,
-              first_name: 'Admin',
-              last_name: 'User',
-              email: 'admin@edifice.com',
-              role: 'admin',
-              is_active: true,
-              is_email_confirmed: true
-            });
-            
-          if (insertError) {
-            console.error('Error creating admin profile:', insertError);
-          }
-        }
-        
-        // Make sure user has admin role
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .upsert({
-            user_id: data.user.id,
-            role: 'admin'
-          }, { onConflict: 'user_id' });
-          
-        if (roleError && roleError.code !== '23505') {
-          console.error('Error setting admin role:', roleError);
-        }
-        
-        // Sign out after checking
+      if (signInData?.user) {
+        // User exists, ensure they have a profile and admin role
+        await ensureAdminProfile(signInData.user.id);
         await supabase.auth.signOut();
-      } else {
-        // Admin doesn't exist, create it
-        const { data: adminData, error: createError } = await supabase.auth.signUp({
-          email: 'admin@edifice.com',
-          password: 'Admin123!',
-          options: {
-            data: {
-              first_name: 'Admin',
-              last_name: 'User',
-              email_confirmed: true  // Set this explicitly
-            }
-          }
-        });
-        
-        if (createError) {
-          console.error("Error creating admin account:", createError);
-          return;
-        }
-        
-        if (adminData?.user) {
-          // Create profile with special admin confirmation flag
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .upsert({
-              id: adminData.user.id,
-              first_name: 'Admin',
-              last_name: 'User',
-              email: 'admin@edifice.com',
-              role: 'admin',
-              is_active: true,
-              is_email_confirmed: true // Special flag to bypass email confirmation
-            });
-            
-          if (profileError) {
-            console.error('Error creating admin profile:', profileError);
-          }
-          
-          // Insert into user_roles
-          const { error: roleError } = await supabase
-            .from('user_roles')
-            .upsert({
-              user_id: adminData.user.id,
-              role: 'admin'
-            });
-            
-          if (roleError) {
-            console.error('Error setting admin role:', roleError);
-          }
+      } else if (signInError) {
+        // If it's not just "email not confirmed", log the error
+        if (!signInError.message.includes('Email not confirmed')) {
+          console.error("Error signing in to admin:", signInError);
         }
       }
+    } else if (signUpData?.user) {
+      // User created, create admin profile
+      await ensureAdminProfile(signUpData.user.id);
     }
   } catch (err) {
     console.error('Error in admin creation:', err);
+  }
+}
+
+// Helper function to ensure admin profile and role exists
+async function ensureAdminProfile(userId: string) {
+  try {
+    // Create or update profile
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert({
+        id: userId,
+        first_name: 'Admin',
+        last_name: 'User',
+        email: 'admin@edifice.com',
+        role: 'admin',
+        is_active: true,
+        is_email_confirmed: true
+      }, { onConflict: 'id' });
+    
+    if (profileError) {
+      console.error('Error creating admin profile:', profileError);
+    }
+    
+    // Ensure admin role exists
+    const { error: roleError } = await supabase
+      .from('user_roles')
+      .upsert({
+        user_id: userId,
+        role: 'admin'
+      }, { onConflict: 'user_id, role' });
+    
+    if (roleError && roleError.code !== '23505') { // Ignore duplicate key errors
+      console.error('Error setting admin role:', roleError);
+    }
+  } catch (error) {
+    console.error('Error ensuring admin profile:', error);
   }
 }
 

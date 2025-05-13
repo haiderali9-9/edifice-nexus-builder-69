@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from '@/components/ui/label';
 import { Building, RefreshCcw } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { resetDatabase, supabase } from '@/lib/supabase';
+import { resetDatabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Auth = () => {
   const [email, setEmail] = useState('');
@@ -17,20 +18,15 @@ const Auth = () => {
   const [lastName, setLastName] = useState('');
   const [activeTab, setActiveTab] = useState('login');
   const [isResetting, setIsResetting] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { user, signIn, signUp, isLoading } = useAuth();
 
   useEffect(() => {
     // Check if user is already logged in
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        navigate('/');
-      }
-    };
-    
-    checkSession();
-  }, [navigate]);
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   const validateEmail = (email: string) => {
     return email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
@@ -72,24 +68,8 @@ const Auth = () => {
     }
     
     try {
-      setIsLoading(true);
-      
-      // Regular sign in for all users
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      
-      if (error) {
-        toast({
-          title: 'Error signing in',
-          description: error.message,
-          variant: 'destructive',
-        });
-        setIsLoading(false);
-        return;
-      }
-      
-      navigate('/');
+      await signIn(email, password);
     } catch (error: any) {
-      setIsLoading(false);
       toast({
         title: 'Error signing in',
         description: error.message || 'An unexpected error occurred',
@@ -130,32 +110,11 @@ const Auth = () => {
     }
     
     try {
-      setIsLoading(true);
-      const { error } = await supabase.auth.signUp({ 
-        email, 
-        password,
-        options: {
-          data: {
-            first_name: firstName,
-            last_name: lastName,
-          },
-          emailRedirectTo: window.location.origin + '/auth'
-        }
-      });
-      
-      if (error) {
-        toast({
-          title: 'Error creating account',
-          description: error.message,
-          variant: 'destructive',
-        });
-        setIsLoading(false);
-        return;
-      }
+      await signUp(email, password, firstName, lastName);
       
       toast({
         title: 'Verification Email Sent!',
-        description: 'Please check your inbox and verify your email. After verification, an administrator will need to approve your account.',
+        description: 'Please check your inbox and verify your email.',
         duration: 6000,
       });
 
@@ -167,8 +126,6 @@ const Auth = () => {
         description: error.message || 'An unexpected error occurred',
         variant: 'destructive',
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 

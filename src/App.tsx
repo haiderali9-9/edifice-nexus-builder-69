@@ -48,34 +48,34 @@ const App: React.FC = () => {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              {/* Auth route */}
-              <Route path="/auth" element={<Auth />} />
+          <AuthProvider>
+            <Toaster />
+            <Sonner />
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                {/* Public auth route */}
+                <Route path="/auth" element={<Auth />} />
 
-              {/* All protected routes wrapped in AuthProvider */}
-              <Route element={<AuthProvider>{<RequireAuth />}</AuthProvider>}>
-                <Route path="/" element={<Index />} />
+                {/* All protected routes */}
+                <Route element={<RequireAuth />}>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/projects/:projectId" element={<ProjectDetails />} />
+                  <Route path="/schedule" element={<Schedule />} />
+                  <Route path="/issues" element={<Issues />} />
+                  <Route path="/projects" element={<Projects />} />
+                  <Route path="/resources" element={<Resources />} />
+                  <Route path="/team" element={<Team />} />
+                  <Route path="/finances" element={<Finances />} />
+                  <Route path="/reports" element={<Reports />} />
+                  <Route path="/documents" element={<Documents />} />
+                  <Route path="/settings" element={<Settings />} />
+                </Route>
                 
-                {/* All routes accessible to both admin and regular users */}
-                <Route path="/projects/:projectId" element={<ProjectDetails />} />
-                <Route path="/schedule" element={<Schedule />} />
-                <Route path="/issues" element={<Issues />} />
-                <Route path="/projects" element={<Projects />} />
-                <Route path="/resources" element={<Resources />} />
-                <Route path="/team" element={<Team />} />
-                <Route path="/finances" element={<Finances />} />
-                <Route path="/reports" element={<Reports />} />
-                <Route path="/documents" element={<Documents />} />
-                <Route path="/settings" element={<Settings />} />
-              </Route>
-              
-              {/* Catch all route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
+                {/* Catch all route */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </AuthProvider>
         </TooltipProvider>
       </BrowserRouter>
     </QueryClientProvider>
