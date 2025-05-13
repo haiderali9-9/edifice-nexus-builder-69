@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   ReactFlow,
@@ -495,37 +494,6 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
             minZoom={0.5}
             maxZoom={2}
           >
-            <Panel position="top-left" className="bg-white p-3 rounded-md shadow-sm border border-gray-200 max-w-xs">
-              <div className="flex flex-col gap-2 text-xs">
-                <div className="font-medium text-sm border-b pb-1">Workflow Guide</div>
-                <div className="space-y-2">
-                  <div>
-                    <div className="font-medium">Connection Types:</div>
-                    <div className="flex items-center mt-1">
-                      <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
-                      <span>Success Path (Bottom) - Tasks run in sequence</span>
-                    </div>
-                    <div className="flex items-center mt-1">
-                      <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
-                      <span>Conditional Path (Right) - Tasks run if condition is met</span>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <div className="font-medium">Parallel Execution:</div>
-                    <div className="text-xs text-gray-600">
-                      Tasks with no dependencies between them can run in parallel.
-                      Tasks connected by arrows must complete in sequence.
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <CircleAlert className="h-4 w-4 text-amber-500 mr-1" />
-                    <span className="text-amber-700">Drag nodes to position them. Connect nodes by dragging from handles.</span>
-                  </div>
-                </div>
-              </div>
-            </Panel>
             <Controls />
             <MiniMap 
               nodeStrokeWidth={3} 
