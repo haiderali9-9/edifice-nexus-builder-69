@@ -360,6 +360,59 @@ export type Database = {
           },
         ]
       }
+      reports: {
+        Row: {
+          data: Json | null
+          date_range_end: string | null
+          date_range_start: string | null
+          description: string | null
+          file_url: string | null
+          generated_at: string
+          generated_by: string | null
+          id: string
+          is_archived: boolean | null
+          project_id: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          data?: Json | null
+          date_range_end?: string | null
+          date_range_start?: string | null
+          description?: string | null
+          file_url?: string | null
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          is_archived?: boolean | null
+          project_id?: string | null
+          title: string
+          type: string
+        }
+        Update: {
+          data?: Json | null
+          date_range_end?: string | null
+          date_range_start?: string | null
+          description?: string | null
+          file_url?: string | null
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          is_archived?: boolean | null
+          project_id?: string | null
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       resource_allocations: {
         Row: {
           consumed: boolean | null
