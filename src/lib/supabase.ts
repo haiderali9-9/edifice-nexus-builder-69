@@ -51,6 +51,50 @@ async function createDefaultAdmin() {
   }
 }
 
+// Function to reset database to initial state
+export async function resetDatabase() {
+  try {
+    // Clear existing data from tables
+    // Delete from tables in order that won't violate foreign key constraints
+    const tables = [
+      'task_assignments',
+      'task_resources',
+      'tasks',
+      'resource_allocations',
+      'team_members',
+      'documents',
+      'financial_transactions',
+      'invoices',
+      'issues',
+      'schedule_events',
+      'reports',
+      'notifications',
+      'team_invitations',
+      'projects',
+      'resources'
+    ];
+    
+    for (const table of tables) {
+      const { error } = await supabase
+        .from(table)
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all rows
+        
+      if (error && error.message !== 'No rows found') {
+        console.error(`Error clearing ${table}:`, error);
+      }
+    }
+    
+    // Re-create default admin user
+    await createDefaultAdmin();
+    
+    return { success: true, message: 'Database reset successfully' };
+  } catch (error) {
+    console.error('Error resetting database:', error);
+    return { success: false, message: 'Failed to reset database' };
+  }
+}
+
 // Uncomment this line to create the admin user when needed
 // createDefaultAdmin();
 

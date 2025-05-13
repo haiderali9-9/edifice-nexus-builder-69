@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Building } from 'lucide-react';
+import { Building, Database, RefreshCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { resetDatabase } from '@/lib/supabase';
 
 const Auth = () => {
   const [email, setEmail] = useState('');
@@ -15,6 +17,7 @@ const Auth = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [activeTab, setActiveTab] = useState('login');
+  const [isResetting, setIsResetting] = useState(false);
   const { signIn, signUp, user, isLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -111,6 +114,37 @@ const Auth = () => {
     } catch (error) {
       console.error("Sign-up error in component:", error);
       // Error toast is shown in the signUp function
+    }
+  };
+
+  const handleResetDatabase = async () => {
+    if (window.confirm('Are you sure you want to reset the database? This will delete all data.')) {
+      setIsResetting(true);
+      try {
+        const result = await resetDatabase();
+        if (result.success) {
+          toast({
+            title: 'Database Reset',
+            description: 'Database has been reset successfully.',
+            variant: 'success',
+          });
+        } else {
+          toast({
+            title: 'Reset Failed',
+            description: result.message || 'Failed to reset database.',
+            variant: 'destructive',
+          });
+        }
+      } catch (error) {
+        toast({
+          title: 'Reset Error',
+          description: 'An unexpected error occurred.',
+          variant: 'destructive',
+        });
+        console.error('Reset error:', error);
+      } finally {
+        setIsResetting(false);
+      }
     }
   };
 
@@ -243,6 +277,20 @@ const Auth = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Reset Database Button - small and in the corner */}
+        <div className="mt-4 flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs opacity-60 hover:opacity-100"
+            onClick={handleResetDatabase}
+            disabled={isResetting}
+          >
+            <RefreshCcw className="h-3 w-3 mr-1" />
+            {isResetting ? 'Resetting...' : 'Reset Database'}
+          </Button>
+        </div>
       </div>
     </div>
   );
