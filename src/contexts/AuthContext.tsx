@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/types/supabase';
+import type { User } from '@supabase/supabase-js';
 
 interface UserProfile {
   id: string;
