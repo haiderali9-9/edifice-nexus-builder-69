@@ -431,7 +431,7 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
             zoomable 
             pannable 
             nodeColor={(node) => {
-              const task = node.data?.task;
+              const task = node.data?.task as Task;
               if (!task) return '#eee';
               
               switch (task.status) {
