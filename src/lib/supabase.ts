@@ -1,5 +1,3 @@
-
-
 // Re-export supabase client from the integrations directory
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from '@/types/supabase';
@@ -46,8 +44,36 @@ async function createDefaultAdmin() {
         }
         
         userId = data.user?.id;
+        
+        // Confirm admin's email automatically if we have userId
+        if (userId) {
+          const { error: confirmError } = await supabase.auth.admin.updateUserById(
+            userId,
+            { email_confirmed: true }
+          );
+          
+          if (confirmError) {
+            console.error('Error confirming admin email:', confirmError);
+          } else {
+            console.log('Admin email confirmed successfully');
+          }
+        }
       } else {
         userId = existingUsers.users[0].id;
+        
+        // Ensure the admin email is confirmed
+        if (!existingUsers.users[0].email_confirmed_at) {
+          const { error: confirmError } = await supabase.auth.admin.updateUserById(
+            userId,
+            { email_confirmed: true }
+          );
+          
+          if (confirmError) {
+            console.error('Error confirming admin email:', confirmError);
+          } else {
+            console.log('Admin email confirmed successfully');
+          }
+        }
       }
       
       if (userId) {
@@ -149,4 +175,3 @@ export async function createRpcFunction() {
 // createDefaultAdmin();
 
 export { supabase };
-

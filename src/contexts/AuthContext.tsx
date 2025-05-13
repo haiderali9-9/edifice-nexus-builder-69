@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
@@ -181,6 +180,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // If admin already exists and can sign in, we're done
       if (adminSignIn?.user) {
         console.log("Admin account exists");
+        
+        // Ensure the admin email is confirmed
+        if (!adminSignIn.user.email_confirmed_at) {
+          // Update user to confirm email directly in the auth.users table
+          // This requires service role access
+          const { error: updateError } = await supabase.auth.admin.updateUserById(
+            adminSignIn.user.id,
+            { email_confirmed: true }
+          );
+          
+          if (updateError) {
+            console.error("Error confirming admin email:", updateError);
+          } else {
+            console.log("Admin email confirmed successfully");
+          }
+        }
+        
         // Sign out immediately after checking
         await supabase.auth.signOut();
         return;
@@ -196,7 +212,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: {
             first_name: 'Admin',
             last_name: 'User',
-          }
+          },
+          emailRedirectTo: window.location.origin
         }
       });
       
@@ -207,6 +224,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (adminData.user) {
         console.log("Admin account created successfully");
+        
+        // Confirm admin's email automatically
+        const { error: confirmError } = await supabase.auth.admin.updateUserById(
+          adminData.user.id,
+          { email_confirmed: true }
+        );
+        
+        if (confirmError) {
+          console.error("Error confirming admin email:", confirmError);
+        } else {
+          console.log("Admin email confirmed successfully");
+        }
         
         // Create admin profile with is_active set to true
         const { error: profileError } = await supabase
@@ -334,7 +363,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // If this is the first user in the system, main admin, or they're already an admin, make them active automatically
       const isFirstUser = (!countError && userCount === 0);
       const isUserAdmin = await checkAdminStatus(userId) || isMainAdmin;
-      const shouldBeActive = isFirstUser || isUserAdmin;
+      const shouldBeActive = isFirstUser || isMainAdmin;
       
       // Create the profile with is_active set appropriately
       const newProfile = {
@@ -425,6 +454,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       
       if (error) {
+        // Special handling for admin user if email not confirmed error
+        if (email === ADMIN_EMAIL && error.message.includes("Email not confirmed")) {
+          // Try to confirm the email automatically for admin
+          const { data: userData } = await supabase.auth.getUser();
+          if (userData?.user) {
+            const { error: confirmError } = await supabase.auth.admin.updateUserById(
+              userData.user.id,
+              { email_confirmed: true }
+            );
+            
+            if (confirmError) {
+              console.error("Error confirming admin email:", confirmError);
+            } else {
+              // Try signing in again
+              const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({ 
+                email, 
+                password 
+              });
+              
+              if (retryError) {
+                toast({
+                  title: 'Error signing in',
+                  description: retryError.message,
+                  variant: 'destructive',
+                });
+                setIsLoading(false);
+                return;
+              }
+              
+              // Successful retry
+              console.log("Sign-in successful after confirming email:", retryData);
+              return;
+            }
+          }
+        }
+        
         console.error("Sign-in error:", error);
         toast({
           title: 'Error signing in',
