@@ -6,6 +6,7 @@ export interface ToastProps {
   description?: string;
   variant?: "default" | "destructive" | "success";
   duration?: number;
+  action?: React.ReactNode; // Add the missing action property
 }
 
 type Toast = ToastProps & {
@@ -15,9 +16,9 @@ type Toast = ToastProps & {
 // This will hold our toast notifications
 const toasts: Toast[] = [];
 
-export function toast({ title, description, variant = "default", duration }: ToastProps) {
+export function toast({ title, description, variant = "default", duration, action }: ToastProps) {
   const id = Math.random().toString(36).substring(2, 9);
-  const newToast = { id, title, description, variant, duration };
+  const newToast = { id, title, description, variant, duration, action };
   
   // Add to our internal store for the Toaster component
   toasts.push(newToast);
@@ -28,6 +29,8 @@ export function toast({ title, description, variant = "default", duration }: Toa
     duration,
     className: variant === "destructive" ? "bg-red-100" : 
                variant === "success" ? "bg-green-100" : "",
+    // Pass action if it exists
+    action: action,
   });
   
   // Remove from our internal store after timeout
