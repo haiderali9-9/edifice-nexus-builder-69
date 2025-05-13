@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -13,6 +13,9 @@ import {
   MarkerType,
   Panel,
   useReactFlow,
+  NodeChange,
+  applyNodeChanges,
+  Node,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Task } from '@/types';
@@ -27,7 +30,8 @@ import {
   ZoomOut, 
   CornerUpLeft, 
   ChevronRight, 
-  Info 
+  Info,
+  CircleAlert,
 } from 'lucide-react';
 import { 
   Dialog,
@@ -47,6 +51,8 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
+import { AspectRatio } from '@/components/ui/aspect-ratio';
 
 // Define node types
 const nodeTypes = {
@@ -99,12 +105,16 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
     condition?: string;
   } | null>(null);
   
-  // Create initial nodes from tasks
+  // Create initial nodes from tasks with proper layout
   const createInitialNodes = (): WorkflowNode[] => {
+    // Create a map to track task dependencies for better positioning
+    const dependencyMap = new Map<string, string[]>();
+    
+    // Create nodes with initial positions
     return tasks.map((task, index) => ({
       id: task.id,
       type: 'taskNode',
-      position: { x: 100, y: 100 + (index * 150) },
+      position: { x: 50, y: 100 + (index * 150) },
       data: { task },
     }));
   };
@@ -157,13 +167,105 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
   // Set up nodes and edges states
   const [nodes, setNodes, onNodesChange] = useNodesState(createInitialNodes());
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-
+  
   // Load initial edges on component mount
-  React.useEffect(() => {
+  useEffect(() => {
     createInitialEdges().then(initialEdges => {
       setEdges(initialEdges);
+      // After loading edges, optimize layout
+      setTimeout(() => optimizeLayout(), 100);
     });
   }, [projectId, tasks]);
+  
+  // Optimize layout to show dependencies clearly
+  const optimizeLayout = () => {
+    if (!edges || edges.length === 0) return;
+    
+    // Build dependency graph
+    const dependencyMap = new Map<string, string[]>();
+    const reverseDependencyMap = new Map<string, string[]>();
+    
+    edges.forEach(edge => {
+      // Forward dependencies
+      if (!dependencyMap.has(edge.source)) {
+        dependencyMap.set(edge.source, []);
+      }
+      dependencyMap.get(edge.source)!.push(edge.target);
+      
+      // Reverse dependencies for layout
+      if (!reverseDependencyMap.has(edge.target)) {
+        reverseDependencyMap.set(edge.target, []);
+      }
+      reverseDependencyMap.get(edge.target)!.push(edge.source);
+    });
+    
+    // Find root nodes (no incoming edges)
+    const rootNodes = nodes
+      .map(node => node.id)
+      .filter(id => !reverseDependencyMap.has(id) || reverseDependencyMap.get(id)!.length === 0);
+    
+    // Assign levels to nodes (distance from root)
+    const nodeLevels = new Map<string, number>();
+    const assignLevels = (nodeId: string, level: number) => {
+      // If node already has a level assigned, take the maximum
+      if (nodeLevels.has(nodeId)) {
+        nodeLevels.set(nodeId, Math.max(nodeLevels.get(nodeId)!, level));
+      } else {
+        nodeLevels.set(nodeId, level);
+      }
+      
+      // Process children
+      if (dependencyMap.has(nodeId)) {
+        dependencyMap.get(nodeId)!.forEach(childId => {
+          assignLevels(childId, level + 1);
+        });
+      }
+    };
+    
+    // Start level assignment from root nodes
+    rootNodes.forEach(rootId => assignLevels(rootId, 0));
+    
+    // For any nodes without levels (disconnected), assign level 0
+    nodes.forEach(node => {
+      if (!nodeLevels.has(node.id)) {
+        nodeLevels.set(node.id, 0);
+      }
+    });
+    
+    // Group nodes by level
+    const nodesByLevel = new Map<number, string[]>();
+    nodeLevels.forEach((level, nodeId) => {
+      if (!nodesByLevel.has(level)) {
+        nodesByLevel.set(level, []);
+      }
+      nodesByLevel.get(level)!.push(nodeId);
+    });
+    
+    // Calculate positions based on levels
+    const newNodes = [...nodes];
+    const levelSpacing = 250; // Horizontal spacing between levels
+    const nodeSpacing = 150;  // Vertical spacing between nodes at same level
+    
+    // Position nodes by level
+    nodesByLevel.forEach((nodeIds, level) => {
+      const levelX = level * levelSpacing + 50;
+      
+      nodeIds.forEach((nodeId, idx) => {
+        const nodeIndex = newNodes.findIndex(n => n.id === nodeId);
+        if (nodeIndex !== -1) {
+          newNodes[nodeIndex] = {
+            ...newNodes[nodeIndex],
+            position: {
+              x: levelX,
+              y: idx * nodeSpacing + 50
+            }
+          };
+        }
+      });
+    });
+    
+    setNodes(newNodes);
+  };
 
   // Handle new connections between nodes
   const onConnect = useCallback(
@@ -211,6 +313,9 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
     
     setEdges(eds => addEdge(newEdge, eds));
     setSelectedConnection(null);
+    
+    // Update layout after adding a new connection
+    setTimeout(() => optimizeLayout(), 100);
   };
 
   // Save the workflow task dependencies
@@ -266,11 +371,92 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
     }
   };
 
+  // Analyze workflow for parallel tasks
+  const getParallelTaskGroups = () => {
+    // Group tasks that can run in parallel (no dependencies between them)
+    const incomingEdges = new Map<string, number>();
+    
+    // Count incoming edges for each node
+    edges.forEach(edge => {
+      const count = incomingEdges.get(edge.target) || 0;
+      incomingEdges.set(edge.target, count + 1);
+    });
+    
+    // Find nodes with the same number of dependencies (potential parallel tasks)
+    const parallelGroups = new Map<number, string[]>();
+    
+    nodes.forEach(node => {
+      const incomingCount = incomingEdges.get(node.id) || 0;
+      if (!parallelGroups.has(incomingCount)) {
+        parallelGroups.set(incomingCount, []);
+      }
+      parallelGroups.get(incomingCount)!.push(node.id);
+    });
+    
+    return parallelGroups;
+  };
+  
+  // Get task dependency chains
+  const getDependencyChains = () => {
+    // Build adjacency list
+    const graph = new Map<string, string[]>();
+    edges.forEach(edge => {
+      if (!graph.has(edge.source)) {
+        graph.set(edge.source, []);
+      }
+      graph.get(edge.source)!.push(edge.target);
+    });
+    
+    // Find root nodes (no incoming edges)
+    const incomingEdges = new Map<string, number>();
+    edges.forEach(edge => {
+      const count = incomingEdges.get(edge.target) || 0;
+      incomingEdges.set(edge.target, count + 1);
+    });
+    
+    const rootNodes = nodes
+      .map(node => node.id)
+      .filter(id => !incomingEdges.has(id));
+    
+    // Build chains from roots
+    const chains: string[][] = [];
+    
+    const buildChain = (nodeId: string, currentChain: string[]) => {
+      const newChain = [...currentChain, nodeId];
+      
+      if (!graph.has(nodeId) || graph.get(nodeId)!.length === 0) {
+        // End of chain
+        chains.push(newChain);
+        return;
+      }
+      
+      // Continue chain for each outgoing edge
+      graph.get(nodeId)!.forEach(nextId => {
+        buildChain(nextId, newChain);
+      });
+    };
+    
+    rootNodes.forEach(rootId => {
+      buildChain(rootId, []);
+    });
+    
+    return chains;
+  };
+
   return (
     <Card className="h-[600px]">
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
-        <CardTitle>Task Workflow</CardTitle>
+        <div>
+          <CardTitle>Task Workflow</CardTitle>
+          <p className="text-sm text-gray-500 mt-1">
+            Connect tasks to define dependencies and execution order
+          </p>
+        </div>
         <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={optimizeLayout}>
+            <ZoomIn className="h-4 w-4 mr-2" />
+            Auto Layout
+          </Button>
           <Button size="sm" variant="outline" onClick={() => setNodes(createInitialNodes())}>
             <CornerUpLeft className="h-4 w-4 mr-2" />
             Reset
@@ -290,22 +476,57 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
           onConnect={onConnect}
           nodeTypes={nodeTypes}
           fitView
+          minZoom={0.5}
+          maxZoom={2}
         >
-          <Panel position="top-left" className="bg-white p-2 rounded-md shadow-sm border border-gray-200">
+          <Panel position="top-left" className="bg-white p-3 rounded-md shadow-sm border border-gray-200 max-w-xs">
             <div className="flex flex-col gap-2 text-xs">
-              <div className="font-medium">Connection Types:</div>
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
-                <span>Success Path (Bottom)</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
-                <span>Conditional Path (Right)</span>
+              <div className="font-medium text-sm border-b pb-1">Workflow Guide</div>
+              <div className="space-y-2">
+                <div>
+                  <div className="font-medium">Connection Types:</div>
+                  <div className="flex items-center mt-1">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                    <span>Success Path (Bottom) - Tasks run in sequence</span>
+                  </div>
+                  <div className="flex items-center mt-1">
+                    <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
+                    <span>Conditional Path (Right) - Tasks run if condition is met</span>
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="font-medium">Parallel Execution:</div>
+                  <div className="text-xs text-gray-600">
+                    Tasks with no dependencies between them can run in parallel.
+                    Tasks connected by arrows must complete in sequence.
+                  </div>
+                </div>
+                
+                <div className="flex items-center">
+                  <CircleAlert className="h-4 w-4 text-amber-500 mr-1" />
+                  <span className="text-amber-700">Drag nodes to position them. Connect nodes by dragging from handles.</span>
+                </div>
               </div>
             </div>
           </Panel>
           <Controls />
-          <MiniMap nodeStrokeWidth={3} zoomable pannable />
+          <MiniMap 
+            nodeStrokeWidth={3} 
+            zoomable 
+            pannable 
+            nodeColor={(node) => {
+              const task = (node.data as any)?.task;
+              if (!task) return '#eee';
+              
+              switch (task.status) {
+                case 'Completed': return '#22c55e';
+                case 'In Progress': return '#3b82f6';
+                case 'Delayed': return '#ef4444';
+                default: return '#94a3b8';
+              }
+            }}
+          />
           <Background color="#aaa" gap={16} />
         </ReactFlow>
       </CardContent>
@@ -314,38 +535,45 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
       <Dialog open={!!selectedConnection} onOpenChange={(open) => !open && setSelectedConnection(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Configure Connection</DialogTitle>
+            <DialogTitle>Configure Task Connection</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <div className="flex items-center mb-4">
               <div className="w-2/5">
-                <Label htmlFor="connection-type">Connection Type</Label>
-                <Select 
-                  value={selectedConnection?.type || 'success'} 
-                  onValueChange={(value) => 
-                    setSelectedConnection(prev => 
-                      prev ? { ...prev, type: value as ConnectionType } : null
-                    )
-                  }
-                >
-                  <SelectTrigger id="connection-type" className="mt-2">
-                    <SelectValue placeholder="Select connection type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="success">Success Path</SelectItem>
-                    <SelectItem value="conditional">Conditional Path</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="source-task">Source Task</Label>
+                <div className="mt-2 text-sm p-2 border rounded-md bg-gray-50">
+                  {tasks.find(t => t.id === selectedConnection?.source)?.name || 'Unknown Task'}
+                </div>
               </div>
               
               <ChevronRight className="mx-4 text-gray-400" />
               
               <div className="w-2/5">
-                <div className="text-sm font-medium">Target Task</div>
-                <div className="mt-2 text-sm p-2 border rounded-md">
+                <Label htmlFor="target-task">Target Task</Label>
+                <div className="mt-2 text-sm p-2 border rounded-md bg-gray-50">
                   {tasks.find(t => t.id === selectedConnection?.target)?.name || 'Unknown Task'}
                 </div>
               </div>
+            </div>
+            
+            <div className="mb-4">
+              <Label htmlFor="connection-type">Connection Type</Label>
+              <Select 
+                value={selectedConnection?.type || 'success'} 
+                onValueChange={(value) => 
+                  setSelectedConnection(prev => 
+                    prev ? { ...prev, type: value as ConnectionType } : null
+                  )
+                }
+              >
+                <SelectTrigger id="connection-type" className="mt-2">
+                  <SelectValue placeholder="Select connection type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="success">Success Path (Sequential Execution)</SelectItem>
+                  <SelectItem value="conditional">Conditional Path (Run If Condition Met)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             
             {selectedConnection?.type === 'conditional' && (
@@ -359,11 +587,32 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
                       prev ? { ...prev, condition: e.target.value } : null
                     )
                   }
-                  placeholder="e.g., If status = Delayed, If priority = Critical"
+                  placeholder="e.g., If previous task status = Completed, If priority = Critical"
                   className="mt-2"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Define when this task should execute after the source task.
+                </p>
               </div>
             )}
+            
+            <div className={cn(
+              "p-3 rounded-md text-sm mt-2",
+              selectedConnection?.type === 'success' 
+                ? "bg-blue-50 text-blue-800"
+                : "bg-amber-50 text-amber-800"
+            )}>
+              <div className="flex items-start">
+                <Info className="h-4 w-4 mr-2 mt-0.5" />
+                <div>
+                  {selectedConnection?.type === 'success' ? (
+                    <>This task will run <strong>after</strong> the source task is completed.</>
+                  ) : (
+                    <>This task will only run if the specified condition is met.</>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
