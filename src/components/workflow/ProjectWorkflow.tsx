@@ -14,13 +14,12 @@ import {
   Panel,
   useReactFlow,
   NodeChange,
-  applyNodeChanges,
   Node,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Task } from '@/types';
 import { supabase } from '@/lib/supabase';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import TaskNode from './TaskNode';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
@@ -39,7 +38,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogTrigger,
   DialogClose
 } from '@/components/ui/dialog';
 import {
@@ -52,7 +50,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { AspectRatio } from '@/components/ui/aspect-ratio';
 
 // Define node types
 const nodeTypes = {
@@ -65,33 +62,15 @@ interface ProjectWorkflowProps {
   onWorkflowSaved?: () => void;
 }
 
-type WorkflowNode = {
-  id: string;
-  type: string;
-  position: { x: number; y: number };
-  data: { 
-    task: Task;
-    connectionCondition?: string;
-  };
-};
+type WorkflowNode = Node<{ 
+  task: Task;
+  connectionCondition?: string;
+}>;
 
-type WorkflowEdge = {
-  id: string;
-  source: string;
-  target: string;
-  sourceHandle?: string;
-  targetHandle?: string;
-  markerEnd: {
-    type: MarkerType;
-  };
-  animated?: boolean;
-  label?: string;
-  style?: React.CSSProperties;
-  data?: {
-    condition?: string;
-    type?: 'success' | 'conditional' | 'default';
-  };
-};
+type WorkflowEdge = Edge<{
+  condition?: string;
+  type?: 'success' | 'conditional' | 'default';
+}>;
 
 type ConnectionType = 'success' | 'conditional' | 'default';
 
@@ -105,22 +84,18 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
     condition?: string;
   } | null>(null);
   
-  // Create initial nodes from tasks with proper layout
-  const createInitialNodes = (): WorkflowNode[] => {
-    // Create a map to track task dependencies for better positioning
-    const dependencyMap = new Map<string, string[]>();
-    
-    // Create nodes with initial positions
+  // Create initial nodes from tasks
+  const createInitialNodes = useCallback((): WorkflowNode[] => {
     return tasks.map((task, index) => ({
       id: task.id,
       type: 'taskNode',
       position: { x: 50, y: 100 + (index * 150) },
       data: { task },
     }));
-  };
+  }, [tasks]);
 
   // Create initial edges from task dependencies
-  const createInitialEdges = async (): Promise<WorkflowEdge[]> => {
+  const fetchDependencies = useCallback(async (): Promise<WorkflowEdge[]> => {
     try {
       const { data: dependencies, error } = await supabase
         .from('task_dependencies')
@@ -129,7 +104,11 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
       
       if (error) throw error;
       
-      return (dependencies || []).map((dep) => {
+      if (!dependencies || dependencies.length === 0) {
+        return [];
+      }
+      
+      return dependencies.map((dep) => {
         // Determine the edge type and style based on the condition
         let edgeStyle: React.CSSProperties = {};
         let sourceHandle = 'source-success';
@@ -144,7 +123,7 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
           id: `e-${dep.source_task_id}-${dep.target_task_id}`,
           source: dep.source_task_id,
           target: dep.target_task_id,
-          sourceHandle: sourceHandle,
+          sourceHandle,
           targetHandle: 'target-default',
           markerEnd: {
             type: MarkerType.ArrowClosed,
@@ -162,24 +141,27 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
       console.error('Error loading task dependencies:', err);
       return [];
     }
-  };
+  }, [projectId]);
 
   // Set up nodes and edges states
-  const [nodes, setNodes, onNodesChange] = useNodesState(createInitialNodes());
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   
-  // Load initial edges on component mount
+  // Initialize nodes and edges on component mount
   useEffect(() => {
-    createInitialEdges().then(initialEdges => {
+    const initialNodes = createInitialNodes();
+    setNodes(initialNodes);
+    
+    fetchDependencies().then(initialEdges => {
       setEdges(initialEdges);
       // After loading edges, optimize layout
-      setTimeout(() => optimizeLayout(), 100);
+      setTimeout(optimizeLayout, 100);
     });
-  }, [projectId, tasks]);
+  }, [createInitialNodes, fetchDependencies, setNodes, setEdges]);
   
   // Optimize layout to show dependencies clearly
-  const optimizeLayout = () => {
-    if (!edges || edges.length === 0) return;
+  const optimizeLayout = useCallback(() => {
+    if (nodes.length === 0 || edges.length === 0) return;
     
     // Build dependency graph
     const dependencyMap = new Map<string, string[]>();
@@ -265,7 +247,7 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
     });
     
     setNodes(newNodes);
-  };
+  }, [nodes, edges, setNodes]);
 
   // Handle new connections between nodes
   const onConnect = useCallback(
@@ -281,7 +263,7 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
   );
 
   // Handle creating new connection with condition
-  const handleCreateConnection = () => {
+  const handleCreateConnection = useCallback(() => {
     if (!selectedConnection) return;
     
     const { source, target, type, condition } = selectedConnection;
@@ -290,7 +272,7 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
     const sourceHandle = type === 'conditional' ? 'source-conditional' : 'source-success';
     const edgeStyle = type === 'conditional' ? { stroke: '#F59E0B' } : undefined;
     
-    const newEdge: Edge = {
+    const newEdge: WorkflowEdge = {
       id: edgeId,
       source,
       target,
@@ -301,22 +283,19 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
         type: MarkerType.ArrowClosed,
       },
       style: edgeStyle,
+      label: condition,
       data: {
         condition,
         type
       }
     };
     
-    if (condition) {
-      newEdge.label = condition;
-    }
-    
     setEdges(eds => addEdge(newEdge, eds));
     setSelectedConnection(null);
     
     // Update layout after adding a new connection
-    setTimeout(() => optimizeLayout(), 100);
-  };
+    setTimeout(optimizeLayout, 100);
+  }, [selectedConnection, setEdges, optimizeLayout]);
 
   // Save the workflow task dependencies
   const saveWorkflow = async () => {
@@ -371,78 +350,6 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
     }
   };
 
-  // Analyze workflow for parallel tasks
-  const getParallelTaskGroups = () => {
-    // Group tasks that can run in parallel (no dependencies between them)
-    const incomingEdges = new Map<string, number>();
-    
-    // Count incoming edges for each node
-    edges.forEach(edge => {
-      const count = incomingEdges.get(edge.target) || 0;
-      incomingEdges.set(edge.target, count + 1);
-    });
-    
-    // Find nodes with the same number of dependencies (potential parallel tasks)
-    const parallelGroups = new Map<number, string[]>();
-    
-    nodes.forEach(node => {
-      const incomingCount = incomingEdges.get(node.id) || 0;
-      if (!parallelGroups.has(incomingCount)) {
-        parallelGroups.set(incomingCount, []);
-      }
-      parallelGroups.get(incomingCount)!.push(node.id);
-    });
-    
-    return parallelGroups;
-  };
-  
-  // Get task dependency chains
-  const getDependencyChains = () => {
-    // Build adjacency list
-    const graph = new Map<string, string[]>();
-    edges.forEach(edge => {
-      if (!graph.has(edge.source)) {
-        graph.set(edge.source, []);
-      }
-      graph.get(edge.source)!.push(edge.target);
-    });
-    
-    // Find root nodes (no incoming edges)
-    const incomingEdges = new Map<string, number>();
-    edges.forEach(edge => {
-      const count = incomingEdges.get(edge.target) || 0;
-      incomingEdges.set(edge.target, count + 1);
-    });
-    
-    const rootNodes = nodes
-      .map(node => node.id)
-      .filter(id => !incomingEdges.has(id));
-    
-    // Build chains from roots
-    const chains: string[][] = [];
-    
-    const buildChain = (nodeId: string, currentChain: string[]) => {
-      const newChain = [...currentChain, nodeId];
-      
-      if (!graph.has(nodeId) || graph.get(nodeId)!.length === 0) {
-        // End of chain
-        chains.push(newChain);
-        return;
-      }
-      
-      // Continue chain for each outgoing edge
-      graph.get(nodeId)!.forEach(nextId => {
-        buildChain(nextId, newChain);
-      });
-    };
-    
-    rootNodes.forEach(rootId => {
-      buildChain(rootId, []);
-    });
-    
-    return chains;
-  };
-
   return (
     <Card className="h-[600px]">
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
@@ -457,7 +364,15 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
             <ZoomIn className="h-4 w-4 mr-2" />
             Auto Layout
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setNodes(createInitialNodes())}>
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={() => {
+              const initialNodes = createInitialNodes();
+              setNodes(initialNodes);
+              setEdges([]);
+            }}
+          >
             <CornerUpLeft className="h-4 w-4 mr-2" />
             Reset
           </Button>
@@ -516,7 +431,7 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
             zoomable 
             pannable 
             nodeColor={(node) => {
-              const task = (node.data as any)?.task;
+              const task = node.data?.task;
               if (!task) return '#eee';
               
               switch (task.status) {
