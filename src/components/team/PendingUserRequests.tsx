@@ -14,13 +14,18 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
-import { Database } from '@/types/supabase';
 
-type PendingUser = Database['public']['Tables']['profiles']['Row'] & {
+type UserRole = 'admin' | 'user';
+
+// Define a custom type for pending users that won't cause infinite type instantiation
+type PendingUser = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
   email: string;
+  created_at: string;
+  is_active: boolean;
 };
-
-type UserRole = Database['public']['Enums']['app_role'];
 
 const PendingUserRequests: React.FC = () => {
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
@@ -74,7 +79,7 @@ const PendingUserRequests: React.FC = () => {
       if (functionError) {
         console.error('Error invoking get-user-emails function:', functionError);
         // Continue with profiles data even if we couldn't get emails
-        setPendingUsers(profilesData as PendingUser[]);
+        setPendingUsers(profilesData as unknown as PendingUser[]);
         toast({
           title: 'Warning',
           description: 'Could not fetch user emails',
@@ -93,7 +98,7 @@ const PendingUserRequests: React.FC = () => {
         });
         
         console.log('Enhanced users with emails:', enhancedUsers);
-        setPendingUsers(enhancedUsers as PendingUser[]);
+        setPendingUsers(enhancedUsers as unknown as PendingUser[]);
       }
     } catch (error) {
       console.error('Error fetching pending users:', error);
