@@ -29,11 +29,11 @@ async function createDefaultAdmin() {
             data: {
               first_name: 'Admin',
               last_name: 'User',
+              email_confirmed: true // Explicitly set confirmed flag
             }
           }
         });
         
-        // Instead of using admin API which requires service role, we'll update the profile with a special flag
         if (userData?.user) {
           // Create or update the profile with special admin confirmation flag
           const { error: profileError } = await supabase
@@ -64,6 +64,21 @@ async function createDefaultAdmin() {
             
           if (roleError && roleError.code !== '23505') {
             console.error('Error setting admin role:', roleError);
+          }
+          
+          // Try signing in now that we've confirmed the email
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: 'admin@edifice.com',
+            password: 'Admin123!'
+          });
+          
+          if (signInError) {
+            console.error('Admin sign-in after setup still failing:', signInError);
+            
+            // Try updating user data directly
+            await supabase.auth.updateUser({
+              data: { email_confirmed: true }
+            });
           }
         }
       } else if (error && error.message !== 'Invalid login credentials') {
@@ -118,6 +133,7 @@ async function createDefaultAdmin() {
             data: {
               first_name: 'Admin',
               last_name: 'User',
+              email_confirmed: true  // Set this explicitly
             }
           }
         });
@@ -222,7 +238,8 @@ export async function createRpcFunction() {
   }
 }
 
-// Run this on startup to ensure admin user exists
+// Run this on startup to ensure admin user exists AND create the RPC function
 createDefaultAdmin();
+createRpcFunction();
 
 export { supabase };

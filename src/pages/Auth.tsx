@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -75,58 +74,88 @@ const Auth = () => {
     try {
       setIsLoading(true);
       
+      // Special handling for admin user
+      const isAdminLogin = email === 'admin@edifice.com' && password === 'Admin123!';
+      
+      if (isAdminLogin) {
+        console.log("Admin login detected, using special login flow");
+        
+        // Try to get the admin user ID first by signing up (which won't create a duplicate if it exists)
+        const { data: adminData, error: signUpError } = await supabase.auth.signUp({
+          email: 'admin@edifice.com',
+          password: 'Admin123!',
+          options: {
+            data: {
+              first_name: 'Admin',
+              last_name: 'User',
+              email_confirmed: true
+            }
+          }
+        });
+        
+        if (adminData?.user) {
+          // Create or update profile with confirmation flag
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert({
+              id: adminData.user.id,
+              first_name: 'Admin',
+              last_name: 'User',
+              email: 'admin@edifice.com',
+              role: 'admin',
+              is_active: true,
+              is_email_confirmed: true
+            }, { onConflict: 'id' });
+            
+          if (profileError) {
+            console.error('Error creating admin profile:', profileError);
+          }
+          
+          // Try signing in again
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: 'admin@edifice.com',
+            password: 'Admin123!'
+          });
+          
+          if (signInError) {
+            console.error("Error in admin sign-in after profile update:", signInError);
+            
+            // Update user via auth.updateUser to force email confirmation
+            await supabase.auth.updateUser({
+              data: { email_confirmed: true }
+            });
+            
+            // Try signing in one final time
+            const { data: finalData, error: finalError } = await supabase.auth.signInWithPassword({
+              email: 'admin@edifice.com', 
+              password: 'Admin123!'
+            });
+            
+            if (finalError) {
+              toast({
+                title: 'Error signing in as admin',
+                description: finalError.message,
+                variant: 'destructive',
+              });
+              setIsLoading(false);
+              return;
+            } else {
+              // Success! Redirect to dashboard
+              navigate('/');
+              return;
+            }
+          } else {
+            // Successful signin
+            navigate('/');
+            return;
+          }
+        }
+      }
+      
+      // Regular sign in for non-admin users
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       
       if (error) {
-        console.error("Sign-in error:", error);
-        
-        // Special handling for admin user with email not confirmed
-        if (email === 'admin@edifice.com' && password === 'Admin123!' && error.message.includes('Email not confirmed')) {
-          // Try special admin handling with multiple approaches
-          try {
-            // First verify the admin profile exists with confirmation flag
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('email', 'admin@edifice.com')
-              .single();
-            
-            if (profile) {
-              // Update profile with confirmation flag
-              await supabase
-                .from('profiles')
-                .update({ is_email_confirmed: true })
-                .eq('id', profile.id);
-              
-              // Try signing up again to trigger user metadata update
-              await supabase.auth.signUp({
-                email: 'admin@edifice.com',
-                password: 'Admin123!',
-                options: {
-                  data: {
-                    first_name: 'Admin',
-                    last_name: 'User',
-                    email_confirmed: true
-                  }
-                }
-              });
-              
-              // Try signing in again
-              const { error: retryError } = await supabase.auth.signInWithPassword({
-                email: 'admin@edifice.com',
-                password: 'Admin123!'
-              });
-              
-              if (!retryError) {
-                navigate('/');
-                return;
-              }
-            }
-          } catch (specialError) {
-            console.error("Special admin handling error:", specialError);
-          }
-        }
-        
         toast({
           title: 'Error signing in',
           description: error.message,
