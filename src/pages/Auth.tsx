@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -5,10 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Building, Database, RefreshCcw, Info } from 'lucide-react';
+import { Building, RefreshCcw } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { resetDatabase, supabase } from '@/lib/supabase';
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const Auth = () => {
   const [email, setEmail] = useState('');
@@ -74,82 +74,7 @@ const Auth = () => {
     try {
       setIsLoading(true);
       
-      // Direct admin login bypass
-      if (email === 'admin@edifice.com' && password === 'Admin123!') {
-        console.log("Admin login detected, using direct bypass");
-        
-        // First check if the admin user exists
-        const { data: adminData, error: signUpError } = await supabase.auth.signUp({
-          email: 'admin@edifice.com',
-          password: 'Admin123!'
-        });
-        
-        if (adminData?.user) {
-          // If admin exists or was just created, try to update user to confirm email
-          await supabase.auth.updateUser({
-            data: { email_verified: true }
-          });
-          
-          // Create or update the admin profile
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .upsert({
-              id: adminData.user.id,
-              first_name: 'Admin',
-              last_name: 'User',
-              email: 'admin@edifice.com',
-              role: 'admin',
-              is_active: true
-            });
-            
-          if (profileError) {
-            console.error('Error creating admin profile:', profileError);
-          }
-          
-          // Try to add admin role (if table exists)
-          try {
-            await supabase
-              .from('user_roles')
-              .insert({
-                user_id: adminData.user.id,
-                role: 'admin'
-              })
-              .select();
-          } catch (roleErr) {
-            console.log("Role assignment skipped or failed - may not be configured yet");
-          }
-          
-          // Try signing in now after updates
-          const { data: signInResult, error: signInError } = await supabase.auth.signInWithPassword({
-            email: 'admin@edifice.com',
-            password: 'Admin123!'
-          });
-          
-          if (signInResult?.session) {
-            // Success! Navigate to dashboard
-            navigate('/');
-            return;
-          } else {
-            // If still failing, use a different approach
-            // Manually sign in the user by creating a session
-            await supabase.auth.signInWithOtp({
-              email: 'admin@edifice.com',
-              options: {
-                shouldCreateUser: false
-              }
-            });
-            
-            toast({
-              title: 'Admin Access',
-              description: "You've been signed in as administrator.",
-            });
-            navigate('/');
-            return;
-          }
-        }
-      }
-      
-      // Regular sign in for non-admin users
+      // Regular sign in for all users
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       
       if (error) {
@@ -290,13 +215,6 @@ const Auth = () => {
             </div>
           </div>
         </div>
-
-        <Alert className="mb-6 bg-blue-50 border-blue-200">
-          <Info className="h-4 w-4 text-blue-600" />
-          <AlertDescription className="text-sm text-blue-700">
-            Default admin login: admin@edifice.com / Admin123!
-          </AlertDescription>
-        </Alert>
 
         <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-2">

@@ -1,3 +1,4 @@
+
 import React, { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -6,8 +7,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import RequireAuth from "./components/auth/RequireAuth";
-import RequireAdmin from "./components/auth/RequireAdmin";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
 
 // Import Issues and Auth pages directly instead of lazy loading them
@@ -60,21 +59,17 @@ const App: React.FC = () => {
               <Route element={<AuthProvider>{<RequireAuth />}</AuthProvider>}>
                 <Route path="/" element={<Index />} />
                 
-                {/* Regular user routes */}
+                {/* All routes accessible to both admin and regular users */}
                 <Route path="/projects/:projectId" element={<ProjectDetails />} />
                 <Route path="/schedule" element={<Schedule />} />
                 <Route path="/issues" element={<Issues />} />
-                
-                {/* Admin-only routes */}
-                <Route element={<RequireAdmin />}>
-                  <Route path="/projects" element={<Projects />} />
-                  <Route path="/resources" element={<Resources />} />
-                  <Route path="/team" element={<Team />} />
-                  <Route path="/finances" element={<Finances />} />
-                  <Route path="/reports" element={<Reports />} />
-                  <Route path="/documents" element={<Documents />} />
-                  <Route path="/settings" element={<Settings />} />
-                </Route>
+                <Route path="/projects" element={<Projects />} />
+                <Route path="/resources" element={<Resources />} />
+                <Route path="/team" element={<Team />} />
+                <Route path="/finances" element={<Finances />} />
+                <Route path="/reports" element={<Reports />} />
+                <Route path="/documents" element={<Documents />} />
+                <Route path="/settings" element={<Settings />} />
               </Route>
               
               {/* Catch all route */}
