@@ -9,7 +9,16 @@ schemas = ["public", "storage"]
 [db]
 enable_user_roles_creation = true
 port = 54322
+max_connections = 100 # Increase for better performance
 
 [studio]
 enabled = true
 port = 54323
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+# Add JWT configuration for auth
+[auth]
+enable_signup = true

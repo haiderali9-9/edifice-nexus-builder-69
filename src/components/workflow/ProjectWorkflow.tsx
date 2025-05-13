@@ -31,6 +31,7 @@ import {
   ChevronRight, 
   Info,
   CircleAlert,
+  Loader2,
 } from 'lucide-react';
 import { 
   Dialog,
@@ -83,6 +84,8 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
     type: ConnectionType;
     condition?: string;
   } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   // Create initial nodes from tasks
   const createInitialNodes = useCallback((): WorkflowNode[] => {
@@ -96,6 +99,7 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
 
   // Create initial edges from task dependencies
   const fetchDependencies = useCallback(async (): Promise<WorkflowEdge[]> => {
+    setIsLoading(true);
     try {
       const { data: dependencies, error } = await supabase
         .from('task_dependencies')
@@ -105,6 +109,7 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
       if (error) throw error;
       
       if (!dependencies || dependencies.length === 0) {
+        setIsLoading(false);
         return [];
       }
       
@@ -139,9 +144,16 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
       });
     } catch (err) {
       console.error('Error loading task dependencies:', err);
+      toast({
+        title: "Error Loading Workflow",
+        description: "Could not load workflow dependencies. Please try again.",
+        variant: "destructive",
+      });
       return [];
+    } finally {
+      setIsLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, toast]);
 
   // Set up nodes and edges states
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -161,7 +173,7 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
   
   // Optimize layout to show dependencies clearly
   const optimizeLayout = useCallback(() => {
-    if (nodes.length === 0 || edges.length === 0) return;
+    if (nodes.length === 0) return;
     
     // Build dependency graph
     const dependencyMap = new Map<string, string[]>();
@@ -299,6 +311,7 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
 
   // Save the workflow task dependencies
   const saveWorkflow = async () => {
+    setIsSaving(true);
     try {
       // First delete all existing dependencies for this project
       const { error: deleteError } = await supabase
@@ -333,6 +346,26 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
         .insert(dependencies);
       
       if (insertError) throw insertError;
+
+      // Save node positions for future reference
+      const nodePositions = nodes.map(node => ({
+        project_id: projectId,
+        task_id: node.id,
+        position_x: node.position.x,
+        position_y: node.position.y,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }));
+
+      // Save node positions to a separate table
+      const { error: positionError } = await supabase
+        .from('workflow_node_positions')
+        .upsert(nodePositions, { onConflict: 'project_id,task_id' });
+
+      if (positionError) {
+        console.error('Error saving node positions:', positionError);
+        // Continue even if positions fail to save
+      }
       
       toast({
         title: "Workflow Saved",
@@ -347,8 +380,57 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
         description: "Failed to save workflow. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsSaving(false);
     }
   };
+
+  // Load saved node positions
+  const loadSavedPositions = useCallback(async () => {
+    try {
+      const { data: positions, error } = await supabase
+        .from('workflow_node_positions')
+        .select('*')
+        .eq('project_id', projectId);
+      
+      if (error) throw error;
+      
+      if (positions && positions.length > 0) {
+        setNodes(prevNodes => {
+          return prevNodes.map(node => {
+            const savedPosition = positions.find(pos => pos.task_id === node.id);
+            if (savedPosition) {
+              return {
+                ...node,
+                position: {
+                  x: savedPosition.position_x,
+                  y: savedPosition.position_y
+                }
+              };
+            }
+            return node;
+          });
+        });
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Error loading saved positions:', err);
+      return false;
+    }
+  }, [projectId, setNodes]);
+
+  // Try to load saved positions on initial load
+  useEffect(() => {
+    if (nodes.length > 0) {
+      loadSavedPositions().then(positionsLoaded => {
+        if (!positionsLoaded) {
+          // If no positions were loaded, run the auto layout
+          optimizeLayout();
+        }
+      });
+    }
+  }, [nodes.length, loadSavedPositions, optimizeLayout]);
 
   return (
     <Card className="h-[600px]">
@@ -376,74 +458,94 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
             <CornerUpLeft className="h-4 w-4 mr-2" />
             Reset
           </Button>
-          <Button size="sm" onClick={saveWorkflow}>
-            <Save className="h-4 w-4 mr-2" />
-            Save Workflow
+          <Button 
+            size="sm" 
+            onClick={saveWorkflow}
+            disabled={isSaving}
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Save Workflow
+              </>
+            )}
           </Button>
         </div>
       </CardHeader>
       <CardContent className="p-0 h-[550px]">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          nodeTypes={nodeTypes}
-          fitView
-          minZoom={0.5}
-          maxZoom={2}
-        >
-          <Panel position="top-left" className="bg-white p-3 rounded-md shadow-sm border border-gray-200 max-w-xs">
-            <div className="flex flex-col gap-2 text-xs">
-              <div className="font-medium text-sm border-b pb-1">Workflow Guide</div>
-              <div className="space-y-2">
-                <div>
-                  <div className="font-medium">Connection Types:</div>
-                  <div className="flex items-center mt-1">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
-                    <span>Success Path (Bottom) - Tasks run in sequence</span>
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400 mr-2" />
+            <span className="text-gray-500">Loading workflow...</span>
+          </div>
+        ) : (
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            nodeTypes={nodeTypes}
+            fitView
+            minZoom={0.5}
+            maxZoom={2}
+          >
+            <Panel position="top-left" className="bg-white p-3 rounded-md shadow-sm border border-gray-200 max-w-xs">
+              <div className="flex flex-col gap-2 text-xs">
+                <div className="font-medium text-sm border-b pb-1">Workflow Guide</div>
+                <div className="space-y-2">
+                  <div>
+                    <div className="font-medium">Connection Types:</div>
+                    <div className="flex items-center mt-1">
+                      <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                      <span>Success Path (Bottom) - Tasks run in sequence</span>
+                    </div>
+                    <div className="flex items-center mt-1">
+                      <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
+                      <span>Conditional Path (Right) - Tasks run if condition is met</span>
+                    </div>
                   </div>
-                  <div className="flex items-center mt-1">
-                    <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
-                    <span>Conditional Path (Right) - Tasks run if condition is met</span>
+                  
+                  <div>
+                    <div className="font-medium">Parallel Execution:</div>
+                    <div className="text-xs text-gray-600">
+                      Tasks with no dependencies between them can run in parallel.
+                      Tasks connected by arrows must complete in sequence.
+                    </div>
                   </div>
-                </div>
-                
-                <div>
-                  <div className="font-medium">Parallel Execution:</div>
-                  <div className="text-xs text-gray-600">
-                    Tasks with no dependencies between them can run in parallel.
-                    Tasks connected by arrows must complete in sequence.
+                  
+                  <div className="flex items-center">
+                    <CircleAlert className="h-4 w-4 text-amber-500 mr-1" />
+                    <span className="text-amber-700">Drag nodes to position them. Connect nodes by dragging from handles.</span>
                   </div>
-                </div>
-                
-                <div className="flex items-center">
-                  <CircleAlert className="h-4 w-4 text-amber-500 mr-1" />
-                  <span className="text-amber-700">Drag nodes to position them. Connect nodes by dragging from handles.</span>
                 </div>
               </div>
-            </div>
-          </Panel>
-          <Controls />
-          <MiniMap 
-            nodeStrokeWidth={3} 
-            zoomable 
-            pannable 
-            nodeColor={(node) => {
-              const task = node.data?.task as Task;
-              if (!task) return '#eee';
-              
-              switch (task.status) {
-                case 'Completed': return '#22c55e';
-                case 'In Progress': return '#3b82f6';
-                case 'Delayed': return '#ef4444';
-                default: return '#94a3b8';
-              }
-            }}
-          />
-          <Background color="#aaa" gap={16} />
-        </ReactFlow>
+            </Panel>
+            <Controls />
+            <MiniMap 
+              nodeStrokeWidth={3} 
+              zoomable 
+              pannable 
+              nodeColor={(node) => {
+                const task = node.data?.task as Task;
+                if (!task) return '#eee';
+                
+                switch (task.status) {
+                  case 'Completed': return '#22c55e';
+                  case 'In Progress': return '#3b82f6';
+                  case 'Delayed': return '#ef4444';
+                  default: return '#94a3b8';
+                }
+              }}
+            />
+            <Background color="#aaa" gap={16} />
+          </ReactFlow>
+        )}
       </CardContent>
 
       {/* Connection Configuration Dialog */}
