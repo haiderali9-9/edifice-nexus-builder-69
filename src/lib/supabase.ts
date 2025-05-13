@@ -1,3 +1,4 @@
+
 // Re-export supabase client from the integrations directory
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from '@/types/supabase';
@@ -54,7 +55,7 @@ async function createDefaultAdmin() {
         await ensureAdminProfile(signInData.user.id);
         await supabase.auth.signOut();
       } else if (signInError) {
-        // If it's not just "email not confirmed", log the error
+        // Only log significant errors
         if (!signInError.message.includes('Email not confirmed')) {
           console.error("Error signing in to admin:", signInError);
         }
@@ -88,16 +89,31 @@ async function ensureAdminProfile(userId: string) {
       console.error('Error creating admin profile:', profileError);
     }
     
-    // Ensure admin role exists
-    const { error: roleError } = await supabase
-      .from('user_roles')
-      .upsert({
-        user_id: userId,
-        role: 'admin'
-      }, { onConflict: 'user_id, role' });
-    
-    if (roleError && roleError.code !== '23505') { // Ignore duplicate key errors
-      console.error('Error setting admin role:', roleError);
+    // Try to call RPC function first to add user role
+    try {
+      const { error: rpcError } = await supabase
+        .rpc('add_user_role', {
+          user_id_param: userId,
+          role_param: 'admin'
+        });
+        
+      if (rpcError) {
+        console.error('Error calling add_user_role RPC:', rpcError);
+        
+        // Fall back to direct table insert if RPC fails
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .upsert({
+            user_id: userId,
+            role: 'admin'
+          }, { onConflict: 'user_id, role' });
+        
+        if (roleError && roleError.code !== '23505') { // Ignore duplicate key errors
+          console.error('Error setting admin role:', roleError);
+        }
+      }
+    } catch (rpcErr) {
+      console.error('RPC execution error:', rpcErr);
     }
   } catch (error) {
     console.error('Error ensuring admin profile:', error);
@@ -151,19 +167,36 @@ export async function resetDatabase() {
 // Create the RPC function to add user roles
 export async function createRpcFunction() {
   try {
+    // Make sure the function exists in Supabase
     const { error } = await supabase.rpc('create_add_user_role_function');
+    
     if (error) {
       console.error('Error creating RPC function:', error);
+      
+      // Don't throw error, just log it - this might be because it already exists
+      if (error.code !== 'PGRST202') {
+        console.error('Unexpected error creating RPC function:', error);
+      } else {
+        console.log('RPC function might already exist, proceeding normally');
+      }
     } else {
       console.log('RPC function created successfully');
     }
   } catch (err) {
-    console.error('Error creating RPC function:', err);
+    console.error('Error attempting to create RPC function:', err);
+    // Continue execution even if this fails
   }
 }
 
 // Run this on startup to ensure admin user exists AND create the RPC function
-createDefaultAdmin();
-createRpcFunction();
+// Separate the calls for better error handling
+(async () => {
+  try {
+    await createRpcFunction().catch(e => console.error('RPC function creation failed:', e));
+    await createDefaultAdmin().catch(e => console.error('Admin creation failed:', e));
+  } catch (e) {
+    console.error('Initialization error:', e);
+  }
+})();
 
 export { supabase };

@@ -39,7 +39,6 @@ const Auth = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Enhanced validation
     if (!email) {
       toast({
         title: 'Email Required',
@@ -81,7 +80,6 @@ const Auth = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Enhanced validation
     if (!email || !password || !firstName || !lastName) {
       toast({
         title: 'Missing Fields',
@@ -290,7 +288,6 @@ const Auth = () => {
           </TabsContent>
         </Tabs>
 
-        {/* Reset Database Button - small and in the corner */}
         <div className="mt-4 flex justify-end">
           <Button
             variant="outline"
