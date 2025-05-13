@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
-import { Database } from '@/integrations/supabase/types';
+import { Database } from '@/types/supabase';
 
 type PendingUser = Database['public']['Tables']['profiles']['Row'] & {
   email: string;

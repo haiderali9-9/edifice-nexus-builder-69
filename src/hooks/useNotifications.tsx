@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export interface Notification {
   id: string;
-  type: string; // Modified to accept string rather than specific enum values
+  type: string;
   title: string;
   message: string;
   read: boolean;
@@ -68,19 +68,13 @@ export function useNotifications() {
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      // Transform the data to match our Notification interface
-      const transformedData: Notification[] = data.map(item => ({
-        ...item,
-        type: 'system_notification', // Default type if not provided
-        read: item.read || false
-      }));
-
-      setNotifications(transformedData);
-      setUnreadCount(transformedData.filter(n => !n.read).length);
+      setNotifications(data as Notification[]);
+      setUnreadCount(data.filter(n => !n.read).length);
     } catch (error) {
       console.error('Error fetching notifications:', error);
       toast({

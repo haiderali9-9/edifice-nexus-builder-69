@@ -54,8 +54,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
       
-      setIsAdmin(data || false);
-      return data || false;
+      setIsAdmin(Boolean(data));
+      return Boolean(data);
     } catch (error) {
       console.error('Error checking admin status:', error);
       setIsAdmin(false);
