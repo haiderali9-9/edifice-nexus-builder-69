@@ -63,32 +63,27 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-                edifice: {
-                    50: '#f0f9ff',
-                    100: '#e0f2fe',
-                    200: '#bae6fd',
-                    300: '#7dd3fc',
-                    400: '#38bdf8',
-                    500: '#0ea5e9',
-                    600: '#0284c7',
-                    700: '#0369a1',
-                    800: '#075985',
-                    900: '#0c4a6e',
-                    950: '#082f49',
-                },
-                operation: {
-                    50: '#ecfdf5',
-                    100: '#d1fae5',
-                    200: '#a7f3d0',
-                    300: '#6ee7b7',
-                    400: '#34d399',
-                    500: '#10b981',
-                    600: '#059669',
-                    700: '#047857',
-                    800: '#065f46',
-                    900: '#064e3b',
-                    950: '#022c22',
-                },
+				construction: {
+					50: '#f0f8ff',
+					100: '#e0f2fe',
+					200: '#bae6fd',
+					300: '#7dd3fc',
+					400: '#38bdf8',
+					500: '#0ea5e9',
+					600: '#0284c7',
+					700: '#0369a1',
+					800: '#075985',
+					900: '#0c4a6e',
+					950: '#082f49',
+				},
+				warning: {
+					DEFAULT: '#f59e0b',
+					foreground: '#ffffff'
+				},
+				success: {
+					DEFAULT: '#10b981',
+					foreground: '#ffffff'
+				}
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
@@ -111,16 +106,11 @@ export default {
 					to: {
 						height: '0'
 					}
-				},
-                'pulse-slow': {
-                    '0%, 100%': { opacity: '1' },
-                    '50%': { opacity: '0.8' },
-                }
+				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out',
-                'pulse-slow': 'pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+				'accordion-up': 'accordion-up 0.2s ease-out'
 			}
 		}
 	},
