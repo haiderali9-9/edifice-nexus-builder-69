@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -11,15 +11,42 @@ import {
   Connection,
   Edge,
   MarkerType,
+  Panel,
+  useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Task } from '@/types';
 import { supabase } from '@/lib/supabase';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import TaskNode from './TaskNode';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
-import { Save, ZoomIn, ZoomOut, CornerUpLeft } from 'lucide-react';
+import { 
+  Save, 
+  ZoomIn, 
+  ZoomOut, 
+  CornerUpLeft, 
+  ChevronRight, 
+  Info 
+} from 'lucide-react';
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 // Define node types
 const nodeTypes = {
@@ -36,22 +63,42 @@ type WorkflowNode = {
   id: string;
   type: string;
   position: { x: number; y: number };
-  data: { task: Task };
+  data: { 
+    task: Task;
+    connectionCondition?: string;
+  };
 };
 
 type WorkflowEdge = {
   id: string;
   source: string;
   target: string;
+  sourceHandle?: string;
+  targetHandle?: string;
   markerEnd: {
     type: MarkerType;
   };
   animated?: boolean;
+  label?: string;
+  style?: React.CSSProperties;
+  data?: {
+    condition?: string;
+    type?: 'success' | 'conditional' | 'default';
+  };
 };
+
+type ConnectionType = 'success' | 'conditional' | 'default';
 
 const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onWorkflowSaved }) => {
   const { toast } = useToast();
-
+  const reactFlowInstance = useReactFlow();
+  const [selectedConnection, setSelectedConnection] = useState<{
+    source: string;
+    target: string;
+    type: ConnectionType;
+    condition?: string;
+  } | null>(null);
+  
   // Create initial nodes from tasks
   const createInitialNodes = (): WorkflowNode[] => {
     return tasks.map((task, index) => ({
@@ -72,15 +119,35 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
       
       if (error) throw error;
       
-      return (dependencies || []).map((dep) => ({
-        id: `e-${dep.source_task_id}-${dep.target_task_id}`,
-        source: dep.source_task_id,
-        target: dep.target_task_id,
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-        },
-        animated: true,
-      }));
+      return (dependencies || []).map((dep) => {
+        // Determine the edge type and style based on the condition
+        let edgeStyle: React.CSSProperties = {};
+        let sourceHandle = 'source-success';
+        let animated = true;
+        
+        if (dep.condition) {
+          sourceHandle = 'source-conditional';
+          edgeStyle = { stroke: '#F59E0B' };
+        }
+        
+        return {
+          id: `e-${dep.source_task_id}-${dep.target_task_id}`,
+          source: dep.source_task_id,
+          target: dep.target_task_id,
+          sourceHandle: sourceHandle,
+          targetHandle: 'target-default',
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+          },
+          animated,
+          style: edgeStyle,
+          label: dep.condition || undefined,
+          data: {
+            condition: dep.condition || undefined,
+            type: dep.condition ? 'conditional' : 'success'
+          }
+        };
+      });
     } catch (err) {
       console.error('Error loading task dependencies:', err);
       return [];
@@ -100,15 +167,51 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
 
   // Handle new connections between nodes
   const onConnect = useCallback(
-    (connection: Connection) => setEdges((eds) => addEdge({
-      ...connection,
+    (connection: Connection) => {
+      // Store the connection details for the dialog
+      setSelectedConnection({
+        source: connection.source || '',
+        target: connection.target || '',
+        type: (connection.sourceHandle?.includes('conditional') ? 'conditional' : 'success') as ConnectionType,
+      });
+    },
+    []
+  );
+
+  // Handle creating new connection with condition
+  const handleCreateConnection = () => {
+    if (!selectedConnection) return;
+    
+    const { source, target, type, condition } = selectedConnection;
+    
+    const edgeId = `e-${source}-${target}`;
+    const sourceHandle = type === 'conditional' ? 'source-conditional' : 'source-success';
+    const edgeStyle = type === 'conditional' ? { stroke: '#F59E0B' } : undefined;
+    
+    const newEdge: Edge = {
+      id: edgeId,
+      source,
+      target,
+      sourceHandle,
+      targetHandle: 'target-default',
+      animated: true,
       markerEnd: {
         type: MarkerType.ArrowClosed,
       },
-      animated: true
-    }, eds)),
-    [setEdges]
-  );
+      style: edgeStyle,
+      data: {
+        condition,
+        type
+      }
+    };
+    
+    if (condition) {
+      newEdge.label = condition;
+    }
+    
+    setEdges(eds => addEdge(newEdge, eds));
+    setSelectedConnection(null);
+  };
 
   // Save the workflow task dependencies
   const saveWorkflow = async () => {
@@ -126,6 +229,7 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
         project_id: projectId,
         source_task_id: edge.source,
         target_task_id: edge.target,
+        condition: edge.data?.condition || null,
         created_at: new Date().toISOString(),
       }));
       
@@ -187,11 +291,88 @@ const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({ projectId, tasks, onW
           nodeTypes={nodeTypes}
           fitView
         >
+          <Panel position="top-left" className="bg-white p-2 rounded-md shadow-sm border border-gray-200">
+            <div className="flex flex-col gap-2 text-xs">
+              <div className="font-medium">Connection Types:</div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                <span>Success Path (Bottom)</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
+                <span>Conditional Path (Right)</span>
+              </div>
+            </div>
+          </Panel>
           <Controls />
           <MiniMap nodeStrokeWidth={3} zoomable pannable />
           <Background color="#aaa" gap={16} />
         </ReactFlow>
       </CardContent>
+
+      {/* Connection Configuration Dialog */}
+      <Dialog open={!!selectedConnection} onOpenChange={(open) => !open && setSelectedConnection(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Configure Connection</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="flex items-center mb-4">
+              <div className="w-2/5">
+                <Label htmlFor="connection-type">Connection Type</Label>
+                <Select 
+                  value={selectedConnection?.type || 'success'} 
+                  onValueChange={(value) => 
+                    setSelectedConnection(prev => 
+                      prev ? { ...prev, type: value as ConnectionType } : null
+                    )
+                  }
+                >
+                  <SelectTrigger id="connection-type" className="mt-2">
+                    <SelectValue placeholder="Select connection type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="success">Success Path</SelectItem>
+                    <SelectItem value="conditional">Conditional Path</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <ChevronRight className="mx-4 text-gray-400" />
+              
+              <div className="w-2/5">
+                <div className="text-sm font-medium">Target Task</div>
+                <div className="mt-2 text-sm p-2 border rounded-md">
+                  {tasks.find(t => t.id === selectedConnection?.target)?.name || 'Unknown Task'}
+                </div>
+              </div>
+            </div>
+            
+            {selectedConnection?.type === 'conditional' && (
+              <div className="mb-4">
+                <Label htmlFor="condition">Condition</Label>
+                <Input
+                  id="condition"
+                  value={selectedConnection.condition || ''}
+                  onChange={(e) => 
+                    setSelectedConnection(prev => 
+                      prev ? { ...prev, condition: e.target.value } : null
+                    )
+                  }
+                  placeholder="e.g., If status = Delayed, If priority = Critical"
+                  className="mt-2"
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button onClick={handleCreateConnection}>Create Connection</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

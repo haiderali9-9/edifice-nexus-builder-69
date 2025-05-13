@@ -3,15 +3,18 @@ import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { Task } from '@/types';
 import { Badge } from '@/components/ui/badge';
+import { Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface TaskNodeProps {
   data: {
     task: Task;
+    connectionCondition?: string;
   };
 }
 
 const TaskNode: React.FC<TaskNodeProps> = ({ data }) => {
-  const { task } = data;
+  const { task, connectionCondition } = data;
 
   const getStatusColor = (status: string): string => {
     switch (status) {
@@ -45,7 +48,12 @@ const TaskNode: React.FC<TaskNodeProps> = ({ data }) => {
 
   return (
     <div className="bg-white border border-gray-200 rounded-md p-3 shadow-sm w-60">
-      <Handle type="target" position={Position.Top} className="w-2 h-2" />
+      <Handle 
+        type="target" 
+        position={Position.Top} 
+        className="w-2 h-2" 
+        id="target-default"
+      />
       <div className="font-medium mb-1">{task.name}</div>
       <div className="text-xs text-gray-500 mb-2">
         {task.description && task.description.length > 50
@@ -60,7 +68,39 @@ const TaskNode: React.FC<TaskNodeProps> = ({ data }) => {
           {task.priority}
         </Badge>
       </div>
-      <Handle type="source" position={Position.Bottom} className="w-2 h-2" />
+      
+      <div className="mt-3 flex justify-between items-center">
+        {connectionCondition && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center text-xs text-blue-600 cursor-help">
+                  <Info size={12} className="mr-1" />
+                  Condition
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs font-medium">{connectionCondition}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
+
+      <Handle 
+        type="source" 
+        position={Position.Bottom} 
+        className="w-2 h-2" 
+        id="source-success"
+      />
+      
+      <Handle 
+        type="source" 
+        position={Position.Right} 
+        className="w-2 h-2 bg-yellow-500" 
+        id="source-conditional"
+        style={{ top: "50%" }}
+      />
     </div>
   );
 };

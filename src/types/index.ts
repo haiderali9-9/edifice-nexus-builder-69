@@ -1,4 +1,3 @@
-
 // Types for project entities
 export interface Task {
   id: string;
@@ -37,6 +36,7 @@ export interface TaskDependency {
   project_id: string;
   source_task_id: string;
   target_task_id: string;
+  condition?: string;
   created_at: string;
 }
 
