@@ -1,15 +1,16 @@
 
-import { toast as sonnerToast, ToastT } from "sonner";
+import { toast as sonnerToast } from "sonner";
 
 export interface ToastProps {
   title?: string;
   description?: string;
   variant?: "default" | "destructive" | "success";
   duration?: number;
-  action?: React.ReactNode; // Add the missing action property
+  action?: React.ReactNode;
 }
 
-type Toast = ToastProps & {
+// This extends ToastProps to include the id property
+export type Toast = ToastProps & {
   id: string;
 };
 
@@ -23,30 +24,28 @@ export function toast({ title, description, variant = "default", duration, actio
   // Add to our internal store for the Toaster component
   toasts.push(newToast);
   
-  // Use sonner toast for actual display
+  // Display using sonner toast
   sonnerToast(title, {
     description,
     duration,
     className: variant === "destructive" ? "bg-red-100" : 
                variant === "success" ? "bg-green-100" : "",
-    // Pass action if it exists
-    action: action,
+    action,
   });
   
   // Remove from our internal store after timeout
   setTimeout(() => {
     const index = toasts.findIndex(t => t.id === id);
-    if (index !== -1) {
+    if (index > -1) {
       toasts.splice(index, 1);
     }
   }, duration || 5000);
-  
-  return id;
 }
 
+// Expose the toast array and function
 export const useToast = () => {
   return {
     toast,
-    toasts: toasts, // Expose toasts array for the Toaster component
+    toasts
   };
 };
