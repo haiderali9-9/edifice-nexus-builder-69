@@ -5,7 +5,8 @@ import DashboardMetrics from "@/components/dashboard/DashboardMetrics";
 import TaskList from "@/components/dashboard/TaskList";
 import ResourceAllocation from "@/components/dashboard/ResourceAllocation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AreaChart, BarChart } from "@/components/ui/chart";
+import { AreaChart } from "@/components/ui/area-chart";
+import { BarChart } from "@/components/ui/bar-chart";
 
 const Index = () => {
   // Sample chart data

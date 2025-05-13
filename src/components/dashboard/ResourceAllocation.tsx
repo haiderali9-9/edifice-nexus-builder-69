@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
 interface ResourceData {
   name: string;
@@ -54,7 +55,10 @@ const ResourceAllocation = () => {
                   {resource.allocation}%
                 </span>
               </div>
-              <Progress value={resource.allocation} className="h-2" indicatorClassName={resource.color} />
+              <Progress 
+                value={resource.allocation} 
+                className={cn("h-2", resource.color)} 
+              />
             </div>
           ))}
         </div>
