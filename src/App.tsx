@@ -1,3 +1,4 @@
+
 import React, { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -9,13 +10,13 @@ import RequireAuth from "./components/auth/RequireAuth";
 import RequireAdmin from "./components/auth/RequireAdmin";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
+
+// Import Issues and Auth pages directly instead of lazy loading them
+import Issues from "./pages/Issues";
+import Auth from "./pages/Auth";
 import Index from "./pages/Index";
 
-// Import Issues page directly instead of lazy loading it
-import Issues from "./pages/Issues";
-
 // Lazy load all other pages for better performance
-const Auth = React.lazy(() => import("./pages/Auth"));
 const Projects = React.lazy(() => import("./pages/Projects"));
 const ProjectDetails = React.lazy(() => import("./pages/ProjectDetails"));
 const Resources = React.lazy(() => import("./pages/Resources"));
@@ -54,7 +55,7 @@ const App: React.FC = () => {
             <Sonner />
             <Suspense fallback={<PageLoader />}>
               <Routes>
-                {/* Public routes */}
+                {/* Auth route - now inside AuthProvider */}
                 <Route path="/auth" element={<Auth />} />
                 
                 {/* Protected routes - require authentication */}
