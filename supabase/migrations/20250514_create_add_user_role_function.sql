@@ -1,29 +1,17 @@
 
 -- Function to add a user role
-CREATE OR REPLACE FUNCTION public.create_add_user_role_function()
+CREATE OR REPLACE FUNCTION public.add_user_role(user_id_param uuid, role_param text)
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-  -- Create the add_user_role function if it doesn't exist
-  CREATE OR REPLACE FUNCTION public.add_user_role(user_id_param uuid, role_param text)
-  RETURNS void
-  LANGUAGE plpgsql
-  SECURITY DEFINER
-  AS $func$
-  BEGIN
-    -- Insert the role, ignore if it already exists
-    INSERT INTO public.user_roles (user_id, role)
-    VALUES (user_id_param, role_param)
-    ON CONFLICT (user_id, role) DO NOTHING;
-  END;
-  $func$;
+  -- Insert the role, ignore if it already exists
+  INSERT INTO public.user_roles (user_id, role)
+  VALUES (user_id_param, role_param)
+  ON CONFLICT (user_id, role) DO NOTHING;
 END;
 $$;
-
--- Execute the function to create the add_user_role function
-SELECT public.create_add_user_role_function();
 
 -- Also ensure user_roles table exists with proper constraints
 DO $$

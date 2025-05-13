@@ -66,15 +66,7 @@ const Auth = () => {
       return;
     }
     
-    try {
-      await signIn(email, password);
-    } catch (error: any) {
-      toast({
-        title: 'Error signing in',
-        description: error.message || 'An unexpected error occurred',
-        variant: 'destructive',
-      });
-    }
+    await signIn(email, password);
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -107,24 +99,8 @@ const Auth = () => {
       return;
     }
     
-    try {
-      await signUp(email, password, firstName, lastName);
-      
-      toast({
-        title: 'Verification Email Sent!',
-        description: 'Please check your inbox and verify your email.',
-        duration: 6000,
-      });
-
-      setActiveTab('login');
-      
-    } catch (error: any) {
-      toast({
-        title: 'Error creating account',
-        description: error.message || 'An unexpected error occurred',
-        variant: 'destructive',
-      });
-    }
+    await signUp(email, password, firstName, lastName);
+    setActiveTab('login');
   };
 
   const handleResetDatabase = async () => {
