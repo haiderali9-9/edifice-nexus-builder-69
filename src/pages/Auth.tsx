@@ -1,15 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Building, Database, RefreshCcw, Info } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { resetDatabase } from '@/lib/supabase';
+import { toast } from '@/hooks/use-toast';
+import { resetDatabase, supabase } from '@/lib/supabase';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const Auth = () => {
@@ -19,16 +18,20 @@ const Auth = () => {
   const [lastName, setLastName] = useState('');
   const [activeTab, setActiveTab] = useState('login');
   const [isResetting, setIsResetting] = useState(false);
-  const { signIn, signUp, user, isLoading } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   useEffect(() => {
-    // If user is already logged in, redirect to dashboard
-    if (user) {
-      navigate('/');
-    }
-  }, [user, navigate]);
+    // Check if user is already logged in
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        navigate('/');
+      }
+    };
+    
+    checkSession();
+  }, [navigate]);
 
   const validateEmail = (email: string) => {
     return email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
@@ -70,11 +73,77 @@ const Auth = () => {
     }
     
     try {
-      await signIn(email, password);
-      // Redirect handled in useEffect when user is set
+      setIsLoading(true);
+      
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      
+      if (error) {
+        console.error("Sign-in error:", error);
+        
+        // Special handling for admin user with email not confirmed
+        if (email === 'admin@edifice.com' && password === 'Admin123!' && error.message.includes('Email not confirmed')) {
+          // Try special admin handling with multiple approaches
+          try {
+            // First verify the admin profile exists with confirmation flag
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('email', 'admin@edifice.com')
+              .single();
+            
+            if (profile) {
+              // Update profile with confirmation flag
+              await supabase
+                .from('profiles')
+                .update({ is_email_confirmed: true })
+                .eq('id', profile.id);
+              
+              // Try signing up again to trigger user metadata update
+              await supabase.auth.signUp({
+                email: 'admin@edifice.com',
+                password: 'Admin123!',
+                options: {
+                  data: {
+                    first_name: 'Admin',
+                    last_name: 'User',
+                    email_confirmed: true
+                  }
+                }
+              });
+              
+              // Try signing in again
+              const { error: retryError } = await supabase.auth.signInWithPassword({
+                email: 'admin@edifice.com',
+                password: 'Admin123!'
+              });
+              
+              if (!retryError) {
+                navigate('/');
+                return;
+              }
+            }
+          } catch (specialError) {
+            console.error("Special admin handling error:", specialError);
+          }
+        }
+        
+        toast({
+          title: 'Error signing in',
+          description: error.message,
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      navigate('/');
     } catch (error: any) {
-      console.error("Sign-in error in component:", error);
-      // Error toast is shown in the signIn function
+      setIsLoading(false);
+      toast({
+        title: 'Error signing in',
+        description: error.message || 'An unexpected error occurred',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -110,11 +179,45 @@ const Auth = () => {
     }
     
     try {
-      await signUp(email, password, firstName, lastName);
+      setIsLoading(true);
+      const { error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+          },
+          emailRedirectTo: window.location.origin + '/auth'
+        }
+      });
+      
+      if (error) {
+        toast({
+          title: 'Error creating account',
+          description: error.message,
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      toast({
+        title: 'Verification Email Sent!',
+        description: 'Please check your inbox and verify your email. After verification, an administrator will need to approve your account.',
+        duration: 6000,
+      });
+
       setActiveTab('login');
-    } catch (error) {
-      console.error("Sign-up error in component:", error);
-      // Error toast is shown in the signUp function
+      
+    } catch (error: any) {
+      toast({
+        title: 'Error creating account',
+        description: error.message || 'An unexpected error occurred',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 

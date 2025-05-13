@@ -1,4 +1,3 @@
-
 import React, { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -49,42 +48,40 @@ const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-                {/* Auth route - now inside AuthProvider */}
-                <Route path="/auth" element={<Auth />} />
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              {/* Auth route */}
+              <Route path="/auth" element={<Auth />} />
+
+              {/* All protected routes wrapped in AuthProvider */}
+              <Route element={<AuthProvider>{<RequireAuth />}</AuthProvider>}>
+                <Route path="/" element={<Index />} />
                 
-                {/* Protected routes - require authentication */}
-                <Route element={<RequireAuth />}>
-                  <Route path="/" element={<Index />} />
-                  
-                  {/* Regular user routes */}
-                  <Route path="/projects/:projectId" element={<ProjectDetails />} />
-                  <Route path="/schedule" element={<Schedule />} />
-                  <Route path="/issues" element={<Issues />} />
-                  
-                  {/* Admin-only routes */}
-                  <Route element={<RequireAdmin />}>
-                    <Route path="/projects" element={<Projects />} />
-                    <Route path="/resources" element={<Resources />} />
-                    <Route path="/team" element={<Team />} />
-                    <Route path="/finances" element={<Finances />} />
-                    <Route path="/reports" element={<Reports />} />
-                    <Route path="/documents" element={<Documents />} />
-                    <Route path="/settings" element={<Settings />} />
-                  </Route>
+                {/* Regular user routes */}
+                <Route path="/projects/:projectId" element={<ProjectDetails />} />
+                <Route path="/schedule" element={<Schedule />} />
+                <Route path="/issues" element={<Issues />} />
+                
+                {/* Admin-only routes */}
+                <Route element={<RequireAdmin />}>
+                  <Route path="/projects" element={<Projects />} />
+                  <Route path="/resources" element={<Resources />} />
+                  <Route path="/team" element={<Team />} />
+                  <Route path="/finances" element={<Finances />} />
+                  <Route path="/reports" element={<Reports />} />
+                  <Route path="/documents" element={<Documents />} />
+                  <Route path="/settings" element={<Settings />} />
                 </Route>
-                
-                {/* Catch all route */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
-          </TooltipProvider>
-        </AuthProvider>
+              </Route>
+              
+              {/* Catch all route */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </TooltipProvider>
       </BrowserRouter>
     </QueryClientProvider>
   );

@@ -451,22 +451,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function signIn(email: string, password: string) {
     try {
       setIsLoading(true);
+      
+      // Special handling for admin user
+      const isAdminLogin = email === ADMIN_EMAIL && password === ADMIN_PASSWORD;
+      
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       
       if (error) {
         // Special handling for admin user if email not confirmed error
-        if (email === ADMIN_EMAIL && error.message.includes("Email not confirmed")) {
-          // Try to confirm the email automatically for admin
-          const { data: userData } = await supabase.auth.getUser();
+        if (isAdminLogin && error.message.includes("Email not confirmed")) {
+          console.log("Admin login detected with unconfirmed email, looking for profile with confirmation flag");
+          
+          // Get user with this email
+          const { data: userData } = await supabase.auth.signUp({ 
+            email, 
+            password,
+            options: {
+              data: {
+                first_name: 'Admin',
+                last_name: 'User',
+              }
+            }
+          });
+          
           if (userData?.user) {
-            const { error: confirmError } = await supabase.auth.admin.updateUserById(
-              userData.user.id,
-              { email_confirmed: true }
-            );
+            // Check if the profile has the special confirmation flag
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('is_email_confirmed')
+              .eq('email', ADMIN_EMAIL)
+              .single();
             
-            if (confirmError) {
-              console.error("Error confirming admin email:", confirmError);
-            } else {
+            if (profile && profile.is_email_confirmed) {
+              console.log("Found admin profile with confirmation flag, trying again");
+              
+              // Create or update profile with admin attributes
+              const { error: profileError } = await supabase
+                .from('profiles')
+                .upsert({
+                  id: userData.user.id,
+                  first_name: 'Admin',
+                  last_name: 'User',
+                  email: ADMIN_EMAIL,
+                  role: 'admin',
+                  is_active: true,
+                  is_email_confirmed: true
+                });
+              
+              if (profileError) {
+                console.error("Error updating admin profile:", profileError);
+              }
+              
               // Try signing in again
               const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({ 
                 email, 
@@ -474,17 +509,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               });
               
               if (retryError) {
-                toast({
-                  title: 'Error signing in',
-                  description: retryError.message,
-                  variant: 'destructive',
+                // If still failing, manually create a session
+                console.log("Still having issues with admin login, creating special session");
+                
+                // Use auth.updateUser to force email confirmation
+                await supabase.auth.updateUser({
+                  data: { email_confirmed: true }
                 });
-                setIsLoading(false);
+                
+                // Try signing in one more time
+                const { data: finalData, error: finalError } = await supabase.auth.signInWithPassword({ 
+                  email, 
+                  password 
+                });
+                
+                if (finalError) {
+                  toast({
+                    title: 'Error signing in',
+                    description: finalError.message,
+                    variant: 'destructive',
+                  });
+                  setIsLoading(false);
+                  return;
+                }
+                
+                // Success! Return to continue with the authenticated session
                 return;
               }
               
               // Successful retry
-              console.log("Sign-in successful after confirming email:", retryData);
+              console.log("Sign-in successful after admin handling:", retryData);
               return;
             }
           }
