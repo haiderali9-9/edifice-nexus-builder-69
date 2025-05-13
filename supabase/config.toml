@@ -1,1 +1,8 @@
+
 project_id = "clowkphpdyuamzscmztv"
+
+[api]
+enabled = true
+
+[db]
+enable_user_roles_creation = true
