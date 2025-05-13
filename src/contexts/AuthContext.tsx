@@ -407,7 +407,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         toast({
           title: 'Account Created',
           description: 'Your administrator account has been set up successfully.',
-          duration: 6000,
         });
       } else if (shouldBeActive) {
         // For regular users who are already admins
@@ -417,14 +416,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         toast({
           title: 'Account Created',
           description: 'Your account has been set up successfully.',
-          duration: 6000,
         });
       } else {
         // For regular users, show the pending approval message
         toast({
           title: 'Registration Complete',
           description: 'Your account has been created but requires admin approval. You will be notified when your account is approved.',
-          duration: 6000,
         });
         
         // Sign out the user after registration since they need approval
@@ -596,7 +593,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       toast({
         title: 'Verification Email Sent!',
         description: 'Please check your inbox and verify your email. After verification, an administrator will need to approve your account.',
-        duration: 6000,
       });
 
       navigate('/auth');
