@@ -1,9 +1,10 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/types/supabase';
-import type { User } from '@supabase/supabase-js';
+import type { User, Session } from '@supabase/auth-helpers-nextjs';
 
 interface UserProfile {
   id: string;
