@@ -12,6 +12,7 @@ export interface Task {
   created_at: string;
   task_assignments?: TaskAssignment[];
   task_resources?: TaskResource[];
+  dependencies?: TaskDependency[];
 }
 
 export interface TaskAssignment {
@@ -29,6 +30,14 @@ export interface TaskResource {
   days?: number;
   quantity?: number;
   resource?: Resource;
+}
+
+export interface TaskDependency {
+  id: string;
+  project_id: string;
+  source_task_id: string;
+  target_task_id: string;
+  created_at: string;
 }
 
 export interface Document {

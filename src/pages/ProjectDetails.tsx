@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import PageLayout from "@/components/layout/PageLayout";
@@ -23,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import ProjectTeam from "@/components/projects/ProjectTeam";
 import ProjectResources from "@/components/projects/ProjectResources";
 import ProjectIssues from "@/components/projects/ProjectIssues";
+import ProjectWorkflow from "@/components/workflow/ProjectWorkflow";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Project, Task, Document } from "@/types";
@@ -244,6 +246,14 @@ const ProjectDetails = () => {
       
       if (resourceError) throw resourceError;
       
+      // Also delete any task dependencies
+      const { error: dependencyError } = await supabase
+        .from('task_dependencies')
+        .delete()
+        .or(`source_task_id.eq.${taskId},target_task_id.eq.${taskId}`);
+        
+      if (dependencyError) throw dependencyError;
+      
       // Finally delete the task
       const { error: taskError } = await supabase
         .from('tasks')
@@ -307,6 +317,11 @@ const ProjectDetails = () => {
       default:
         return <File className="h-4 w-4 text-gray-500" />;
     }
+  };
+  
+  // Handle workflow saved
+  const handleWorkflowSaved = () => {
+    refetchTasks();
   };
 
   return (
@@ -429,6 +444,7 @@ const ProjectDetails = () => {
       <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
+          <TabsTrigger value="workflow">Workflow</TabsTrigger>
           <TabsTrigger value="issues">Issues</TabsTrigger>
           <TabsTrigger value="resources">Resources</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
@@ -512,6 +528,26 @@ const ProjectDetails = () => {
           </Card>
         </TabsContent>
         
+        <TabsContent value="workflow">
+          {tasks && tasks.length > 0 ? (
+            <ProjectWorkflow 
+              projectId={projectId!} 
+              tasks={tasks} 
+              onWorkflowSaved={handleWorkflowSaved}
+            />
+          ) : (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <ClipboardList className="h-12 w-12 text-gray-400 mb-4" />
+                <p className="text-lg font-medium text-gray-700 mb-2">No Tasks Available</p>
+                <p className="text-gray-500 mb-6">Add tasks to the project before creating a workflow.</p>
+                <Button onClick={() => setShowNewTaskModal(true)}>
+                  <Plus className="h-4 w-4 mr-2" /> Add Task
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
         
         <TabsContent value="issues">
           <Card>
