@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ClipboardList, Plus } from "lucide-react";
 import ProjectWorkflow from "@/components/workflow/ProjectWorkflow";
+import { ReactFlowProvider } from "@xyflow/react";
 
 interface ProjectWorkflowTabProps {
   projectId: string;
@@ -22,11 +23,13 @@ const ProjectWorkflowTab = ({
   
   if (tasks && tasks.length > 0) {
     return (
-      <ProjectWorkflow 
-        projectId={projectId} 
-        tasks={tasks} 
-        onWorkflowSaved={onWorkflowSaved}
-      />
+      <ReactFlowProvider>
+        <ProjectWorkflow 
+          projectId={projectId} 
+          tasks={tasks} 
+          onWorkflowSaved={onWorkflowSaved}
+        />
+      </ReactFlowProvider>
     );
   }
   
