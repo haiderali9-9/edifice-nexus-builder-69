@@ -7,9 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Building, Database, RefreshCcw } from 'lucide-react';
+import { Building, Database, RefreshCcw, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { resetDatabase } from '@/lib/supabase';
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const Auth = () => {
   const [email, setEmail] = useState('');
@@ -160,6 +161,13 @@ const Auth = () => {
             </div>
           </div>
         </div>
+
+        <Alert className="mb-6 bg-blue-50 border-blue-200">
+          <Info className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-sm text-blue-700">
+            Default admin login: admin@edifice.com / Admin123!
+          </AlertDescription>
+        </Alert>
 
         <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-2">

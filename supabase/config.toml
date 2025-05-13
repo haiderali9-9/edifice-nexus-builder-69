@@ -3,6 +3,13 @@ project_id = "clowkphpdyuamzscmztv"
 
 [api]
 enabled = true
+port = 54321
+schemas = ["public", "storage"]
 
 [db]
 enable_user_roles_creation = true
+port = 54322
+
+[studio]
+enabled = true
+port = 54323

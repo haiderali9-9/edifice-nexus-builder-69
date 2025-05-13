@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
@@ -70,6 +71,10 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Define admin credentials
+const ADMIN_EMAIL = "admin@edifice.com";
+const ADMIN_PASSWORD = "Admin123!";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -150,10 +155,93 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     });
 
+    // Create admin account on startup if it doesn't exist
+    createAdminAccount().catch(console.error);
+
     return () => {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Function to create admin account if it doesn't exist
+  async function createAdminAccount() {
+    try {
+      console.log("Checking for admin account...");
+      
+      // First check if admin user exists
+      const { data: adminSignIn, error: checkError } = await supabase.auth.signInWithPassword({
+        email: ADMIN_EMAIL,
+        password: ADMIN_PASSWORD
+      });
+      
+      if (checkError && checkError.message !== "Invalid login credentials") {
+        console.error("Error checking admin account:", checkError);
+      }
+      
+      // If admin already exists and can sign in, we're done
+      if (adminSignIn?.user) {
+        console.log("Admin account exists");
+        // Sign out immediately after checking
+        await supabase.auth.signOut();
+        return;
+      }
+      
+      console.log("Creating admin account...");
+      
+      // Create admin account
+      const { data: adminData, error: createError } = await supabase.auth.signUp({
+        email: ADMIN_EMAIL,
+        password: ADMIN_PASSWORD,
+        options: {
+          data: {
+            first_name: 'Admin',
+            last_name: 'User',
+          }
+        }
+      });
+      
+      if (createError) {
+        console.error("Error creating admin account:", createError);
+        return;
+      }
+      
+      if (adminData.user) {
+        console.log("Admin account created successfully");
+        
+        // Create admin profile with is_active set to true
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: adminData.user.id,
+            first_name: 'Admin',
+            last_name: 'User',
+            email: ADMIN_EMAIL,
+            role: 'admin',
+            is_active: true
+          });
+          
+        if (profileError) {
+          console.error('Error creating admin profile:', profileError);
+        }
+        
+        // Add admin role using RPC
+        const { error: roleError } = await supabase
+          .rpc('add_user_role', {
+            user_id_param: adminData.user.id,
+            role_param: 'admin'
+          });
+          
+        if (roleError) {
+          console.error('Error setting admin role:', roleError);
+        }
+        
+        // Sign out immediately after creating admin
+        await supabase.auth.signOut();
+      }
+    } catch (error) {
+      console.error("Error in admin account creation:", error);
+    }
+  }
 
   async function fetchProfile(userId: string) {
     try {
@@ -182,8 +270,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (existingProfile) {
         console.log('Found existing profile:', existingProfile);
 
+        // Special handling for admin@edifice.com - always active and admin
+        const isMainAdmin = existingProfile.email === ADMIN_EMAIL;
+
         // Check if user is active or is an admin (admins bypass approval)
-        if (existingProfile.is_active === false && !isUserAdmin) {
+        if (existingProfile.is_active === false && !isUserAdmin && !isMainAdmin) {
           toast({
             title: 'Account Pending Approval',
             description: 'Your account is pending approval from an administrator.',
@@ -194,7 +285,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         // If they are an admin but not active, make them active
-        if (isUserAdmin && existingProfile.is_active === false) {
+        if ((isUserAdmin || isMainAdmin) && existingProfile.is_active === false) {
           const { error: updateError } = await supabase
             .from('profiles')
             .update({ is_active: true })
@@ -232,14 +323,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       
+      // Check if this is the admin account
+      const isMainAdmin = userData.user.email === ADMIN_EMAIL;
+      
       // Check if the user is first user (to make them admin) or determine if they're already an admin
       const { count: userCount, error: countError } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true });
       
-      // If this is the first user in the system or they're already an admin, make them active automatically
+      // If this is the first user in the system, main admin, or they're already an admin, make them active automatically
       const isFirstUser = (!countError && userCount === 0);
-      const isUserAdmin = await checkAdminStatus(userId);
+      const isUserAdmin = await checkAdminStatus(userId) || isMainAdmin;
       const shouldBeActive = isFirstUser || isUserAdmin;
       
       // Create the profile with is_active set appropriately
@@ -248,7 +342,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         first_name: userData.user.user_metadata?.first_name || '',
         last_name: userData.user.user_metadata?.last_name || '',
         email: userData.user.email,
-        role: isFirstUser ? 'admin' : 'user',  // First user gets admin role
+        role: isFirstUser || isMainAdmin ? 'admin' : 'user',  // First user or main admin gets admin role
         avatar_url: null,
         is_active: shouldBeActive // Active if first user or admin
       };
@@ -264,8 +358,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Don't throw again, continue with the code
       }
       
-      // If this is the first user, make them an admin
-      if (isFirstUser) {
+      // If this is the first user or main admin, make them an admin
+      if (isFirstUser || isMainAdmin) {
         // Add admin role
         const { error: roleError } = await supabase
           .from('user_roles')
