@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import RequireAuth from "./components/auth/RequireAuth";
 import { Loader2 } from "lucide-react";
+import { ThemeProvider } from "./contexts/ThemeProvider";
 
 // Import Issues and Auth pages directly instead of lazy loading them
 import Issues from "./pages/Issues";
@@ -47,36 +48,38 @@ const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <TooltipProvider>
-          <AuthProvider>
-            <Toaster />
-            <Sonner />
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-                {/* Public auth route */}
-                <Route path="/auth" element={<Auth />} />
+        <ThemeProvider defaultTheme="light">
+          <TooltipProvider>
+            <AuthProvider>
+              <Toaster />
+              <Sonner />
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  {/* Public auth route */}
+                  <Route path="/auth" element={<Auth />} />
 
-                {/* All protected routes */}
-                <Route element={<RequireAuth />}>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/projects/:projectId" element={<ProjectDetails />} />
-                  <Route path="/schedule" element={<Schedule />} />
-                  <Route path="/issues" element={<Issues />} />
-                  <Route path="/projects" element={<Projects />} />
-                  <Route path="/resources" element={<Resources />} />
-                  <Route path="/team" element={<Team />} />
-                  <Route path="/finances" element={<Finances />} />
-                  <Route path="/reports" element={<Reports />} />
-                  <Route path="/documents" element={<Documents />} />
-                  <Route path="/settings" element={<Settings />} />
-                </Route>
-                
-                {/* Catch all route */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
-          </AuthProvider>
-        </TooltipProvider>
+                  {/* All protected routes */}
+                  <Route element={<RequireAuth />}>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/projects/:projectId" element={<ProjectDetails />} />
+                    <Route path="/schedule" element={<Schedule />} />
+                    <Route path="/issues" element={<Issues />} />
+                    <Route path="/projects" element={<Projects />} />
+                    <Route path="/resources" element={<Resources />} />
+                    <Route path="/team" element={<Team />} />
+                    <Route path="/finances" element={<Finances />} />
+                    <Route path="/reports" element={<Reports />} />
+                    <Route path="/documents" element={<Documents />} />
+                    <Route path="/settings" element={<Settings />} />
+                  </Route>
+                  
+                  {/* Catch all route */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </AuthProvider>
+          </TooltipProvider>
+        </ThemeProvider>
       </BrowserRouter>
     </QueryClientProvider>
   );
