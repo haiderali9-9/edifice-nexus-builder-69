@@ -1,8 +1,9 @@
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
-// Initialize the Supabase client with the project URL and anon key
-export const supabase = createClient(
-  'https://clowkphpdyuamzscmztv.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsb3drcGhwZHl1YW16c2NtenR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ1MzYxNzUsImV4cCI6MjA2MDExMjE3NX0.77tk7GP5CBQTaYxWSw82AzwJfTfG-G2mkorlXz5U1Ys'
-);
+// Check for environment variables
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://clowkphpdyuamzscmztv.supabase.co";
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "your-anon-key";
+
+// Create the Supabase client
+export const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
