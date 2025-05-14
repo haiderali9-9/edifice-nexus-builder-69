@@ -1,8 +1,8 @@
 
 import { toast as sonnerToast } from "sonner";
-import { useToast as useShadcnToast } from "@/components/ui/use-toast";
+import { useToast as useShadcnToast } from "@/components/ui/toast";
 
-// Export the shadcn toast hook for compatibility
+// Create a useToast hook that uses the shadcn useToast hook
 export const useToast = useShadcnToast;
 
 // Create an enhanced toast function that uses sonner toast
