@@ -6,6 +6,12 @@
   ],
   "compilerOptions": {
     "baseUrl": ".",
+    "target": "ES6",
+    "module": "ESNext",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "moduleResolution": "node",
+    "forceConsistentCasingInFileNames": true,
     "paths": {
       "@/*": ["./src/*"]
     },
