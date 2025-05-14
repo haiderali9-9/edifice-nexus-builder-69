@@ -1,10 +1,13 @@
 
 import { toast as sonnerToast } from "sonner";
 import { useState, useCallback } from "react";
-import type { ToastProps } from "@/components/ui/toast";
 
-// Create a local implementation of useToast
-// This will avoid circular dependencies with components/ui/use-toast.ts
+// Create a standalone implementation of useToast
+// This will avoid circular dependencies
+
+type ToastProps = {
+  variant?: "default" | "destructive" | "success";
+};
 
 type ToastActionElement = React.ReactElement;
 
