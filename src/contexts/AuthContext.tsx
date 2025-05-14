@@ -1,6 +1,16 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { AuthResponse, Session, User } from '@supabase/supabase-js';
+import type { User, Session } from '@supabase/supabase-js';
+
+// Define AuthResponse type inline since it's not directly exported
+interface AuthResponse {
+  data: {
+    user: User | null;
+    session: Session | null;
+  };
+  error: Error | null;
+}
 
 interface Profile {
   id: string;
