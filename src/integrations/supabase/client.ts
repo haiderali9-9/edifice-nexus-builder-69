@@ -1,5 +1,4 @@
 
-
 import { createClient } from '@supabase/supabase-js';
 
 // Check for environment variables
@@ -11,4 +10,3 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Also export as supabaseClient for backward compatibility if needed
 export const supabaseClient = supabase;
-
