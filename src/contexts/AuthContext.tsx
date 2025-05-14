@@ -1,13 +1,11 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { Session, User } from '@supabase/supabase-js';
 
 // Define AuthResponse type inline since it's not directly exported
 interface AuthResponse {
   data: {
-    user: User | null;
-    session: Session | null;
+    user: any | null;
+    session: any | null;
   };
   error: Error | null;
 }
@@ -26,8 +24,8 @@ interface Profile {
 }
 
 interface AuthContextProps {
-  user: User | null;
-  session: Session | null;
+  user: any | null;
+  session: any | null;
   profile: Profile | null;
   isLoading: boolean;
   isAdmin: boolean; // Add isAdmin property 
@@ -54,8 +52,8 @@ const AuthContext = createContext<AuthContextProps>({
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<any | null>(null);
+  const [session, setSession] = useState<any | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
