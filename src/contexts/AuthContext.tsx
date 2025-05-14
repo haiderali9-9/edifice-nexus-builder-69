@@ -1,17 +1,32 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Session, User } from '@supabase/supabase-js';
+import type { Session, User, AuthResponse } from '@supabase/supabase-js';
+
+interface Profile {
+  id: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
+  avatar_url?: string | null;
+  position?: string;
+  department?: string;
+  role?: string;
+  [key: string]: any; // Allow for additional properties
+}
 
 interface AuthContextProps {
   user: User | null;
   session: Session | null;
-  profile: any | null;
+  profile: Profile | null;
   isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<any>;
-  signUp: (email: string, password: string, userData?: any) => Promise<any>;
+  isAdmin: boolean; // Add isAdmin property 
+  signIn: (email: string, password: string) => Promise<AuthResponse>;
+  signUp: (email: string, password: string, userData?: any) => Promise<AuthResponse>;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
+  updateProfile: (data: Partial<Profile>) => Promise<void>; // Add updateProfile method
 }
 
 const AuthContext = createContext<AuthContextProps>({
@@ -19,10 +34,12 @@ const AuthContext = createContext<AuthContextProps>({
   session: null,
   profile: null,
   isLoading: true,
-  signIn: async () => ({}),
-  signUp: async () => ({}),
+  isAdmin: false,
+  signIn: async () => ({ data: { user: null, session: null }, error: null }) as AuthResponse,
+  signUp: async () => ({ data: { user: null, session: null }, error: null }) as AuthResponse,
   signOut: async () => { },
   refreshSession: async () => { },
+  updateProfile: async () => { }
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -30,8 +47,9 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<any | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Fetch user profile data
   const fetchUserProfile = async (userId: string) => {
@@ -51,6 +69,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Exception while fetching profile:', error);
       return null;
+    }
+  };
+
+  // Check if the user has admin role
+  const checkAdminRole = async (userId: string) => {
+    try {
+      // Using RPC function created in migrations to check if user is admin
+      const { data, error } = await supabase.rpc('is_admin');
+      
+      if (error) {
+        console.error('Error checking admin status:', error);
+        return false;
+      }
+      
+      return data || false;
+    } catch (error) {
+      console.error('Exception while checking admin role:', error);
+      return false;
+    }
+  };
+
+  // Update user profile
+  const updateProfile = async (profileData: Partial<Profile>) => {
+    if (!user) throw new Error('No user logged in');
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update(profileData)
+        .eq('id', user.id);
+
+      if (error) {
+        throw error;
+      }
+
+      // Update local profile state
+      setProfile(prev => prev ? { ...prev, ...profileData } : null);
+      
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      throw error;
     }
   };
 
@@ -74,6 +133,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (session.user) {
             const profileData = await fetchUserProfile(session.user.id);
             setProfile(profileData);
+            
+            // Check if user is admin
+            const adminStatus = await checkAdminRole(session.user.id);
+            setIsAdmin(adminStatus);
           }
         }
       } catch (error) {
@@ -96,8 +159,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session?.user) {
           const profileData = await fetchUserProfile(session.user.id);
           setProfile(profileData);
+          
+          // Check if user is admin
+          const adminStatus = await checkAdminRole(session.user.id);
+          setIsAdmin(adminStatus);
         } else {
           setProfile(null);
+          setIsAdmin(false);
         }
         
         setIsLoading(false);
@@ -113,16 +181,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Sign in with email and password
   const signIn = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const response = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
-        throw error;
+      if (response.error) {
+        throw response.error;
       }
 
-      return data;
+      return response;
     } catch (error) {
       console.error('Error signing in:', error);
       throw error;
@@ -133,7 +201,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, password: string, userData?: any) => {
     try {
       // Create the auth user
-      const { data, error } = await supabase.auth.signUp({
+      const response = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -141,11 +209,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       });
 
-      if (error) {
-        throw error;
+      if (response.error) {
+        throw response.error;
       }
 
-      return data;
+      return response;
     } catch (error) {
       console.error('Error signing up:', error);
       throw error;
@@ -176,6 +244,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data.session?.user) {
         const profileData = await fetchUserProfile(data.session.user.id);
         setProfile(profileData);
+        
+        // Check if user is admin
+        const adminStatus = await checkAdminRole(data.session.user.id);
+        setIsAdmin(adminStatus);
       }
     } catch (error) {
       console.error('Error refreshing session:', error);
@@ -187,10 +259,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     session,
     profile,
     isLoading,
+    isAdmin,
     signIn,
     signUp,
     signOut,
     refreshSession,
+    updateProfile,
   };
 
   return (

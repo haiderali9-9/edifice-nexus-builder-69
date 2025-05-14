@@ -98,8 +98,28 @@ const Auth = () => {
       return;
     }
     
-    await signUp(email, password, firstName, lastName);
-    setActiveTab('login');
+    try {
+      // Prepare user data for profile
+      const userData = {
+        first_name: firstName,
+        last_name: lastName
+      };
+      
+      await signUp(email, password, userData);
+      setActiveTab('login');
+      
+      toast({
+        title: 'Account Created',
+        description: 'Your account has been created. Please check your email for verification.',
+        variant: 'success',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Signup Error',
+        description: error.message || 'Failed to create account',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleResetDatabase = async () => {
