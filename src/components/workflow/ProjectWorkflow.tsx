@@ -30,7 +30,7 @@ import {
   CornerUpLeft, 
   ChevronRight, 
   Info,
-  CircleAlert,
+  AlertCircle,
   Loader2,
   Search,
   Wand2,
