@@ -1,6 +1,6 @@
 
 // Re-export the Supabase client from the integration file
-import { supabase, supabaseClient } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 
 // Helper function to reset database (for demo purposes)
 export const resetDatabase = async (): Promise<{ success: boolean; message?: string }> => {
@@ -28,4 +28,5 @@ export const resetDatabase = async (): Promise<{ success: boolean; message?: str
   }
 };
 
-export { supabase, supabaseClient };
+export { supabase };
+
