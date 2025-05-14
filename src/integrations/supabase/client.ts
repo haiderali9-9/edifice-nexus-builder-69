@@ -1,5 +1,5 @@
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from '@supabase/supabase-js';
 
 // Check for environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://clowkphpdyuamzscmztv.supabase.co";
